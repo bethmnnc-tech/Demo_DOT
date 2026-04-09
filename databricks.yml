@@ -159,7 +159,7 @@ resources:
       name: "[${bundle.target}] DOT Streaming Ingestion"
       target: ${var.catalog}.${var.schema_silver}
       libraries:
-        - notebook:
+        - file:
             path: ./Demo_Code/05_streaming_dlt.py
       configuration:
         base_path: ${var.base_path}
