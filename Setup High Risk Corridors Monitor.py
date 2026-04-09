@@ -1,58 +1,76 @@
 # Databricks notebook source
 # DBTITLE 1,Setup Lakehouse Monitor and refresh metric tables
-import time, json, requests
-from databricks.sdk.runtime import dbutils
+import json, requests
+from databricks.sdk import WorkspaceClient
 
-ctx = dbutils.notebook.entry_point.getDbutils().notebook().getContext()
-host = ctx.apiUrl().get()
-token = ctx.apiToken().get()
-headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+w = WorkspaceClient()
 
-TABLE = "workspace.dot_gold.high_risk_corridors"
+# Build auth headers from SDK config
+auth_headers = w.config._header_factory()
+auth_headers["Content-Type"] = "application/json"
 
-# Get existing monitor
-resp = requests.get(f"{host}/api/2.1/unity-catalog/tables/{TABLE}/monitor", headers=headers)
-print(f"GET monitor: {resp.status_code}")
+TABLE = "workspace.dot_gold.bridge_health_summary"
+BASE = w.config.host + "/api/2.1/unity-catalog/tables/" + TABLE + "/monitor"
+
+# Create snapshot monitor (current state only, no time series)
+resp = requests.post(
+    BASE,
+    headers=auth_headers,
+    json={
+        "output_schema_name": "workspace.dot_gold",
+        "assets_dir": "/Workspace/Users/beth.ramsey@trace3.com/databricks_lakehouse_monitoring/workspace.dot_gold.bridge_health_summary",
+        "snapshot": {},
+    },
+)
+print("Create monitor: " + str(resp.status_code))
 if resp.status_code == 200:
     info = resp.json()
-    print(f"  Output schema: {info.get('output_schema_name')}")
-    print(f"  Profile table: {info.get('profile_metrics_table_name')}")
-    print(f"  Drift table:   {info.get('drift_metrics_table_name')}")
+    print("Profile metrics: " + info.get("profile_metrics_table_name", "N/A"))
+    print("Drift metrics: " + info.get("drift_metrics_table_name", "N/A"))
 else:
-    print(f"  Response: {resp.text[:300]}")
+    print(resp.text[:500])
+
+# COMMAND ----------
+
+# DBTITLE 1,Run first refresh and verify metric tables
+import time, requests
+from databricks.sdk import WorkspaceClient
+
+w = WorkspaceClient()
+auth_headers = w.config._header_factory()
+auth_headers["Content-Type"] = "application/json"
+
+TABLE = "workspace.dot_gold.bridge_health_summary"
+BASE = w.config.host + "/api/2.1/unity-catalog/tables/" + TABLE + "/monitor"
 
 # Trigger refresh
-resp = requests.post(f"{host}/api/2.1/unity-catalog/tables/{TABLE}/monitor/refreshes", headers=headers)
-print(f"\nPOST refresh: {resp.status_code}")
+resp = requests.post(BASE + "/refreshes", headers=auth_headers)
+print("Refresh: " + str(resp.status_code))
 if resp.status_code == 200:
-    refresh = resp.json()
-    refresh_id = refresh["refresh_id"]
-    print(f"  Refresh started (ID: {refresh_id})")
+    refresh_id = resp.json()["refresh_id"]
+    print("Refresh started (ID: " + str(refresh_id) + "), polling...")
 
-    # Poll until complete
     while True:
         time.sleep(15)
-        resp = requests.get(
-            f"{host}/api/2.1/unity-catalog/tables/{TABLE}/monitor/refreshes",
-            headers=headers
-        )
+        resp = requests.get(BASE + "/refreshes", headers=auth_headers)
         refreshes = resp.json().get("refreshes", [])
         current = [r for r in refreshes if r["refresh_id"] == refresh_id]
         if current:
             state = current[0]["state"]
-            print(f"  State: {state}")
+            print("  State: " + state)
             if state in ("SUCCESS", "FAILED", "CANCELED"):
                 if current[0].get("message"):
-                    print(f"  Message: {current[0]['message']}")
+                    print("  Message: " + current[0]["message"])
                 break
 
     # Verify metric tables exist
     print()
     for suffix in ["profile_metrics", "drift_metrics"]:
         try:
-            cnt = spark.table(f"workspace.dot_gold.high_risk_corridors_{suffix}").count()
-            print(f"✓ high_risk_corridors_{suffix}: {cnt} rows")
+            cnt = spark.table("workspace.dot_gold.bridge_health_summary_" + suffix).count()
+            print("bridge_health_summary_" + suffix + ": " + str(cnt) + " rows")
         except Exception as e:
-            print(f"✗ high_risk_corridors_{suffix}: {e}")
+            print("bridge_health_summary_" + suffix + ": " + str(e))
+    print("\nDone! The monitoring dashboard should now work.")
 else:
-    print(f"  Response: {resp.text[:500]}")
+    print(resp.text[:500])
