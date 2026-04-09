@@ -186,6 +186,9 @@ targets:
       pipelines:
         dot_streaming_pipeline:
           development: true
+    permissions:
+      - user_name: beth.ramsey@trace3.com
+        level: CAN_RUN
 
   # ── Production ──────────────────────────────────────────────────────────────
   prod:
