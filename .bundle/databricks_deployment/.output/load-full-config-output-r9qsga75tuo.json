@@ -1,0 +1,35 @@
+{
+  "__locations": {
+    "files": [
+      "databricks.yml"
+    ],
+    "locations": {
+      "bundle": [
+        [
+          0,
+          2,
+          3
+        ]
+      ],
+      "targets": [
+        [
+          0,
+          8,
+          3
+        ]
+      ]
+    },
+    "version": 1
+  },
+  "bundle": {
+    "name": "databricks_deployment"
+  },
+  "targets": {
+    "dev": {
+      "workspace": {
+        "host": "https://dbc-a5388842-1c80.cloud.databricks.com/",
+        "root_path": "/Workspace/databricks_bundle/.bundle/${bundle.name}/${bundle.target}"
+      }
+    }
+  }
+}

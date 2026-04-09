@@ -22,14 +22,14 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StringType, DoubleType, IntegerType, ArrayType
 
-spark = SparkSession.builder.appName("DOT_GeospatialAnalytics").getOrCreate()
+spark = SparkSession.builder.appName("main.dot_geospatialAnalytics").getOrCreate()
 
 BASE_PATH  = "/Volumes/main/default/dot_lakehouse"
 GEO_PATH   = f"{BASE_PATH}/bronze/geospatial"
 SILVER_PATH= f"{BASE_PATH}/silver"
 GOLD_PATH  = f"{BASE_PATH}/gold/geospatial"
 
-spark.sql("CREATE DATABASE IF NOT EXISTS dot_geo")
+spark.sql("CREATE DATABASE IF NOT EXISTS main.dot_geo")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UDFs – H3 spatial indexing
@@ -137,7 +137,7 @@ df_inc_geo.write.format("delta").mode("overwrite").option("overwriteSchema","tru
     .save(f"{GOLD_PATH}/incidents_geo_enriched")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.incidents_geo_enriched
+    CREATE OR REPLACE TABLE main.dot_geo.incidents_geo_enriched
     AS SELECT * FROM delta.`{GOLD_PATH}/incidents_geo_enriched`
 """)
 print(f"  ✓ incidents_geo_enriched → {df_inc_geo.count():,} rows")
@@ -189,7 +189,7 @@ df_h3_grid.write.format("delta").mode("overwrite").option("overwriteSchema","tru
     .save(f"{GOLD_PATH}/h3_incident_density")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.h3_incident_density
+    CREATE OR REPLACE TABLE main.dot_geo.h3_incident_density
     AS SELECT * FROM delta.`{GOLD_PATH}/h3_incident_density`
 """)
 print(f"  ✓ h3_incident_density → {df_h3_grid.count():,} H3 cells")
@@ -242,7 +242,7 @@ df_corridor_incidents.write.format("delta").mode("overwrite").option("overwriteS
     .save(f"{GOLD_PATH}/corridor_safety_rates")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.corridor_safety_rates
+    CREATE OR REPLACE TABLE main.dot_geo.corridor_safety_rates
     AS SELECT * FROM delta.`{GOLD_PATH}/corridor_safety_rates`
 """)
 print(f"  ✓ corridor_safety_rates → {df_corridor_incidents.count():,} corridor segments")
@@ -285,7 +285,7 @@ df_hotspots.write.format("delta").mode("overwrite").option("overwriteSchema","tr
     .save(f"{GOLD_PATH}/incident_hotspots")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.incident_hotspots
+    CREATE OR REPLACE TABLE main.dot_geo.incident_hotspots
     AS SELECT * FROM delta.`{GOLD_PATH}/incident_hotspots`
 """)
 
@@ -339,7 +339,7 @@ df_brg_taz.write.format("delta").mode("overwrite").option("overwriteSchema","tru
     .save(f"{GOLD_PATH}/bridges_with_taz")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.bridges_with_taz
+    CREATE OR REPLACE TABLE main.dot_geo.bridges_with_taz
     AS SELECT * FROM delta.`{GOLD_PATH}/bridges_with_taz`
 """)
 print(f"  ✓ bridges_with_taz → {df_brg_taz.count():,} rows")
@@ -385,7 +385,7 @@ df_wz_incidents.write.format("delta").mode("overwrite").option("overwriteSchema"
     .save(f"{GOLD_PATH}/work_zone_incident_conflicts")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_geo.work_zone_incident_conflicts
+    CREATE OR REPLACE TABLE main.dot_geo.work_zone_incident_conflicts
     AS SELECT * FROM delta.`{GOLD_PATH}/work_zone_incident_conflicts`
 """)
 print(f"  ✓ work_zone_incident_conflicts → {df_wz_incidents.count():,} work zones with incidents")

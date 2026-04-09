@@ -11,9 +11,9 @@ st.caption("Interactive predictions from the DOT_Transportation_ML experiment")
 EXPERIMENT_ID = "947763301386294"
 
 UC_MODELS = {
-    "incident_severity_gbt": "models:/main.default.dot_incident_severity/1",
-    "bridge_risk_score_gbt": "models:/main.default.dot_bridge_risk/1",
-    "pavement_deterioration_rf": "models:/main.default.dot_pavement_deterioration/1",
+    "incident_severity_gbt": "models:/main.default.dot_incident_severity/4",
+    "bridge_risk_score_gbt": "models:/main.default.dot_bridge_risk/4",
+    "pavement_deterioration_rf": "models:/main.default.dot_pavement_deterioration/4",
 }
 
 @st.cache_resource

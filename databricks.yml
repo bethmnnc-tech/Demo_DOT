@@ -1,0 +1,197 @@
+# =============================================================================
+# databricks.yml — Databricks Asset Bundle (DAB) Root Configuration
+# DOT Transportation Data Platform
+#
+# Docs: https://docs.databricks.com/dev-tools/bundles/index.html
+# CLI:  databricks bundle deploy --target dev
+# =============================================================================
+
+bundle:
+  name: dot_transportation_platform
+
+# ── Global variables (overridden per target) ──────────────────────────────────
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: main
+
+  schema_bronze:
+    description: Bronze schema name
+    default: dot_bronze
+
+  schema_silver:
+    description: Silver schema name
+    default: dot_silver
+
+  schema_gold:
+    description: Gold schema name
+    default: dot_gold
+
+  schema_geo:
+    description: Geospatial schema name
+    default: dot_geo
+
+  base_path:
+    description: Root DBFS/UC volume path
+    default: /Volumes/main/default/dot_lakehouse
+
+# ── Workspace settings ────────────────────────────────────────────────────────
+workspace:
+  root_path: /Workspace/databricks_bundles/.bundle/${bundle.name}/${bundle.target}
+  artifact_path: /Workspace/databricks_bundles/.bundle/${bundle.name}/${bundle.target}/artifacts
+  state_path: /Workspace/databricks_bundles/.bundle/${bundle.name}/${bundle.target}/state
+
+# ── Resources ─────────────────────────────────────────────────────────────────
+resources:
+
+  # ── Job 1: Data Refresh Pipeline (Bronze → Silver → Gold) ─────────────────
+  jobs:
+    dot_data_refresh:
+      name: "[${bundle.target}] DOT Data Refresh Pipeline"
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ? *"   # Daily at 6 AM ET
+        timezone_id: America/New_York
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: data_pipeline
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies: []
+      tasks:
+        - task_key: generate_bronze
+          spark_python_task:
+            python_file: ./Demo_Code/01_generate_sample_data.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: transform_silver
+          depends_on:
+            - task_key: generate_bronze
+          spark_python_task:
+            python_file: ./Demo_Code/02_silver_transformations.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: build_gold
+          depends_on:
+            - task_key: transform_silver
+          spark_python_task:
+            python_file: ./Demo_Code/03_gold_analytics.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: geospatial_generation
+          depends_on:
+            - task_key: transform_silver
+          spark_python_task:
+            python_file: ./Demo_Code/07a_geospatial_data_generation.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: geospatial_analytics
+          depends_on:
+            - task_key: geospatial_generation
+          spark_python_task:
+            python_file: ./Demo_Code/07b_geospatial_analytics.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+    # ── Job 2: ML Model Training & Registration ──────────────────────────────
+    dot_ml_training:
+      name: "[${bundle.target}] DOT ML Model Training"
+      schedule:
+        quartz_cron_expression: "0 0 8 ? * MON *"  # Weekly Monday 8 AM ET
+        timezone_id: America/New_York
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: ml_models
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - mlflow[databricks]
+              - scikit-learn==1.6.1
+      tasks:
+        - task_key: train_and_register
+          spark_python_task:
+            python_file: ./Demo_Code/04_ml_models.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 3600
+
+    # ── Job 3: Lakehouse Monitoring Refresh ──────────────────────────────────
+    dot_monitoring_refresh:
+      name: "[${bundle.target}] DOT Monitoring Refresh"
+      schedule:
+        quartz_cron_expression: "0 0 10 * * ? *"   # Daily at 10 AM ET
+        timezone_id: America/New_York
+      tags:
+        project: dot_transportation
+        layer: monitoring
+      tasks:
+        - task_key: bridge_health_monitor
+          notebook_task:
+            notebook_path: ./Bridge Health Monitoring Setup
+          timeout_seconds: 1200
+
+        - task_key: high_risk_corridors_monitor
+          notebook_task:
+            notebook_path: ./High Risk Corridors Monitoring Setup
+          timeout_seconds: 1200
+
+  # ── DLT Pipeline: Streaming Ingestion ──────────────────────────────────────
+  pipelines:
+    dot_streaming_pipeline:
+      name: "[${bundle.target}] DOT Streaming Ingestion"
+      target: ${var.catalog}.${var.schema_silver}
+      libraries:
+        - notebook:
+            path: ./Demo_Code/05_streaming_dlt.py
+      configuration:
+        base_path: ${var.base_path}
+      continuous: false
+      development: true
+      serverless: true
+      catalog: ${var.catalog}
+
+# ── Deployment targets ────────────────────────────────────────────────────────
+targets:
+  # ── Development ─────────────────────────────────────────────────────────────
+  dev:
+    default: true
+    workspace:
+      host: https://dbc-a5388842-1c80.cloud.databricks.com
+      root_path: /Workspace/databricks_bundles/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: main
+    resources:
+      pipelines:
+        dot_streaming_pipeline:
+          development: true
+
+  # ── Production ──────────────────────────────────────────────────────────────
+  prod:
+    workspace:
+      host: https://dbc-a5388842-1c80.cloud.databricks.com
+      root_path: /Workspace/databricks_bundles/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: main
+    resources:
+      pipelines:
+        dot_streaming_pipeline:
+          development: false
+          continuous: true

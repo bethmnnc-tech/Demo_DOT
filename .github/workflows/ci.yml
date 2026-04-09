@@ -1,0 +1,61 @@
+# =============================================================================
+# CI Pipeline — Validate Databricks Asset Bundle on Pull Requests
+# Runs on every PR to main to catch config/syntax errors before merge
+# =============================================================================
+name: CI — Validate Bundle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "databricks.yml"
+      - "Demo_Code/**"
+      - "dot_app/**"
+      - ".github/workflows/**"
+
+permissions:
+  contents: read
+  id-token: write   # required for OIDC auth with Databricks
+
+jobs:
+  validate:
+    name: Validate DAB Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle (dev)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle validate --target dev
+
+      - name: Validate bundle (prod)
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle validate --target prod
+
+  lint:
+    name: Lint Python Notebooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Lint Demo_Code
+        run: ruff check Demo_Code/ --ignore E402,F821 --exit-zero

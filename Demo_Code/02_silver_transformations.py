@@ -10,7 +10,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from delta.tables import DeltaTable
 
-spark = SparkSession.builder.appName("DOT_SilverTransformations").getOrCreate()
+spark = SparkSession.builder.appName("main.dot_silverTransformations").getOrCreate()
 
 BASE_PATH    = "/Volumes/main/default/dot_lakehouse"
 BRONZE_PATH  = f"{BASE_PATH}/bronze"
@@ -236,13 +236,13 @@ print(f"✓ Silver pavement_conditions → {df_pav_silver.count():,} rows")
 # ─────────────────────────────────────────────────────────────────────────────
 # Register Silver tables in Hive Metastore (or Unity Catalog)
 # ─────────────────────────────────────────────────────────────────────────────
-spark.sql("CREATE DATABASE IF NOT EXISTS dot_silver")
+spark.sql("CREATE DATABASE IF NOT EXISTS main.dot_silver")
 
 for tbl in ["traffic_incidents","bridge_inspections","vehicle_registrations","pavement_conditions"]:
     spark.sql(f"""
-        CREATE OR REPLACE TABLE dot_silver.{tbl}
+        CREATE OR REPLACE TABLE main.dot_silver.{tbl}
         AS SELECT * FROM delta.`{SILVER_PATH}/{tbl}`
     """)
-    print(f"  Registered: dot_silver.{tbl}")
+    print(f"  Registered: main.dot_silver.{tbl}")
 
 print("\n✅  Silver layer complete.")

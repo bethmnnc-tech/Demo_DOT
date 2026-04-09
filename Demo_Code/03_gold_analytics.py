@@ -9,13 +9,13 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-spark = SparkSession.builder.appName("DOT_GoldAnalytics").getOrCreate()
+spark = SparkSession.builder.appName("main.dot_goldAnalytics").getOrCreate()
 
 BASE_PATH   = "/Volumes/main/default/dot_lakehouse"
 SILVER_PATH = f"{BASE_PATH}/silver"
 GOLD_PATH   = f"{BASE_PATH}/gold"
 
-spark.sql("CREATE DATABASE IF NOT EXISTS dot_gold")
+spark.sql("CREATE DATABASE IF NOT EXISTS main.dot_gold")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GOLD 1 – Incident Summary by Route / Year / Month
@@ -50,7 +50,7 @@ df_incident_summary.write.format("delta").mode("overwrite").option("overwriteSch
     .save(f"{GOLD_PATH}/incident_summary")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.incident_summary
+    CREATE OR REPLACE TABLE main.dot_gold.incident_summary
     AS SELECT * FROM delta.`{GOLD_PATH}/incident_summary`
 """)
 print(f"✓ Gold incident_summary → {df_incident_summary.count():,} rows")
@@ -87,7 +87,7 @@ df_high_risk.write.format("delta").mode("overwrite").option("overwriteSchema","t
     .save(f"{GOLD_PATH}/high_risk_corridors")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.high_risk_corridors
+    CREATE OR REPLACE TABLE main.dot_gold.high_risk_corridors
     AS SELECT * FROM delta.`{GOLD_PATH}/high_risk_corridors`
 """)
 print(f"✓ Gold high_risk_corridors → {df_high_risk.count():,} rows")
@@ -127,7 +127,7 @@ df_bridge_health.write.format("delta").mode("overwrite").option("overwriteSchema
     .save(f"{GOLD_PATH}/bridge_health_summary")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.bridge_health_summary
+    CREATE OR REPLACE TABLE main.dot_gold.bridge_health_summary
     AS SELECT * FROM delta.`{GOLD_PATH}/bridge_health_summary`
 """)
 print(f"✓ Gold bridge_health_summary → {df_bridge_health.count():,} rows")
@@ -160,7 +160,7 @@ df_fleet.write.format("delta").mode("overwrite").option("overwriteSchema","true"
     .save(f"{GOLD_PATH}/fleet_snapshot")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.fleet_snapshot
+    CREATE OR REPLACE TABLE main.dot_gold.fleet_snapshot
     AS SELECT * FROM delta.`{GOLD_PATH}/fleet_snapshot`
 """)
 print(f"✓ Gold fleet_snapshot → {df_fleet.count():,} rows")
@@ -213,7 +213,7 @@ df_pavement_needs.write.format("delta").mode("overwrite").option("overwriteSchem
     .save(f"{GOLD_PATH}/pavement_needs_assessment")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.pavement_needs_assessment
+    CREATE OR REPLACE TABLE main.dot_gold.pavement_needs_assessment
     AS SELECT * FROM delta.`{GOLD_PATH}/pavement_needs_assessment`
 """)
 print(f"✓ Gold pavement_needs_assessment → {df_pavement_needs.count():,} rows")
@@ -277,7 +277,7 @@ df_scorecard.write.format("delta").mode("overwrite").option("overwriteSchema","t
     .save(f"{GOLD_PATH}/executive_kpi_scorecard")
 
 spark.sql(f"""
-    CREATE OR REPLACE TABLE dot_gold.executive_kpi_scorecard
+    CREATE OR REPLACE TABLE main.dot_gold.executive_kpi_scorecard
     AS SELECT * FROM delta.`{GOLD_PATH}/executive_kpi_scorecard`
 """)
 print(f"✓ Gold executive_kpi_scorecard → {df_scorecard.count():,} rows")
@@ -294,7 +294,7 @@ SELECT state_code,
        poor_pavement_pct,
        total_registered_vehicles,
        ev_adoption_pct
-FROM dot_gold.executive_kpi_scorecard
+FROM main.dot_gold.executive_kpi_scorecard
 ORDER BY total_fatalities DESC
 """).show(15)
 
