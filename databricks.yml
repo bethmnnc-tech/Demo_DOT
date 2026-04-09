@@ -145,12 +145,12 @@ resources:
       tasks:
         - task_key: bridge_health_monitor
           notebook_task:
-            notebook_path: ./Bridge Health Monitoring Setup
+            notebook_path: ./Bridge Health Monitoring Setup.py
           timeout_seconds: 1200
 
         - task_key: high_risk_corridors_monitor
           notebook_task:
-            notebook_path: ./High Risk Corridors Monitoring Setup
+            notebook_path: ./High Risk Corridors Monitoring Setup.py
           timeout_seconds: 1200
 
   # ── DLT Pipeline: Streaming Ingestion ──────────────────────────────────────
