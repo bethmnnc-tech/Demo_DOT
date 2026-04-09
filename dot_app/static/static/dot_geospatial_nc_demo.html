@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NC DOT Geospatial Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg0: #0a0e1a;
+    --bg1: #0f1525;
+    --bg2: #151d30;
+    --bg3: #1c2640;
+    --border: rgba(100,140,255,0.12);
+    --accent: #4f8ef7;
+    --accent2: #00d4aa;
+    --text-primary: #e8eeff;
+    --text-secondary: #7a8caf;
+    --text-muted: #4a5a7a;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+    --red:    #ef4444;
+    --orange: #f46d43;
+    --yellow: #fdae61;
+    --ltyellow:#fee090;
+    --purple: #a855f7;
+    --cyan:   #06b6d4;
+    --green:  #22c55e;
+    --amber:  #f59e0b;
+  }
+
+  body {
+    background: var(--bg0);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-left h1 {
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+  }
+  .header-left .sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 3px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .badge {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    gap: 16px;
+  }
+
+  .map-panel {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .map-toolbar {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    background: transparent;
+    font-family: var(--font-mono);
+    transition: all .15s;
+    letter-spacing: 0.04em;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    cursor: crosshair;
+  }
+
+  .map-footer {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg2);
+    font-size: 11px;
+    color: var(--text-secondary);
+    min-height: 36px;
+  }
+  .map-footer span.label { color: var(--accent); margin-right: 6px; }
+
+  /* ── Right panel ── */
+  .right-panel { display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .card-title {
+    font-family: var(--font-head);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+  }
+
+  /* Stats */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat {
+    background: var(--bg2);
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid var(--border);
+  }
+  .stat-val {
+    font-family: var(--font-head);
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+  }
+
+  /* Legend */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border);
+  }
+  .legend-item:last-child { border-bottom: none; }
+  .swatch {
+    width: 12px; height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* H3 info */
+  .h3-info {
+    background: var(--bg2);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.7;
+  }
+  .h3-info .mono { color: var(--accent2); font-family: var(--font-mono); font-size: 9px; }
+
+  /* Coordinates bar */
+  .coords-bar {
+    display: flex;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 8px 16px;
+    background: var(--bg0);
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono);
+  }
+  .coords-bar span { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>NC DOT Geospatial Dashboard</h1>
+    <div class="sub">Databricks Lakehouse · H3 Spatial Analytics · North Carolina</div>
+  </div>
+  <div class="badge">dot_geo · Bronze / Gold</div>
+</div>
+
+<div class="layout">
+
+  <!-- ── Map panel ── -->
+  <div class="map-panel">
+    <div class="map-toolbar">
+      <button class="tab active" onclick="setLayer('incidents',this)">Incident Hotspots</button>
+      <button class="tab" onclick="setLayer('corridors',this)">Road Corridors</button>
+      <button class="tab" onclick="setLayer('bridges',this)">Bridge Risk</button>
+      <button class="tab" onclick="setLayer('sensors',this)">Sensor Network</button>
+      <button class="tab" onclick="setLayer('workzones',this)">Work Zones</button>
+    </div>
+    <canvas id="map"></canvas>
+    <div class="map-footer" id="info"><span class="label">hover</span>Move over a feature for details</div>
+    <div class="coords-bar">
+      <div>LAT <span id="coord-lat">–</span></div>
+      <div>LON <span id="coord-lon">–</span></div>
+      <div>H3 R8 <span id="coord-h3">–</span></div>
+      <div style="margin-left:auto">NC · EPSG:4326 · WGS84</div>
+    </div>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div class="right-panel">
+
+    <div class="card">
+      <div class="card-title">Layer Stats</div>
+      <div class="stat-grid" id="stats">
+        <div class="stat"><div class="stat-val">–</div><div class="stat-lbl">loading</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Legend</div>
+      <div id="legend"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">H3 Grid Info</div>
+      <div class="h3-info">
+        Resolution <b style="color:var(--accent2)">8</b> hexagons<br>
+        Avg area: <span class="mono">0.74 km²</span><br>
+        Used for: incident density, hotspot z-score, sensor proximity<br><br>
+        Resolution <b style="color:var(--accent2)">6</b> hexagons<br>
+        Avg area: <span class="mono">36 km²</span><br>
+        Used for: county-level roll-up, TAZ overlay<br><br>
+        <span class="mono">H3 k-ring join</span> used for spatial proximity without ST_Intersects
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('map');
+const ctx = canvas.getContext('2d');
+
+// ── Sizing ─────────────────────────────────────────────────────────────────
+function resize() {
+  const panel = canvas.parentElement;
+  const toolbarH = panel.querySelector('.map-toolbar').offsetHeight;
+  const footerH  = panel.querySelector('.map-footer').offsetHeight;
+  const coordH   = panel.querySelector('.coords-bar').offsetHeight;
+  const available = window.innerHeight - 24*2 - 44 - 16;  // approx
+  canvas.width  = panel.clientWidth;
+  canvas.height = Math.max(320, available - toolbarH - footerH - coordH);
+  drawLayer();
+}
+window.addEventListener('resize', resize);
+
+// ── Map bounds ─────────────────────────────────────────────────────────────
+const BOUNDS = { minLat:33.7, maxLat:36.7, minLon:-84.4, maxLon:-75.3 };
+
+function project(lat, lon) {
+  const x = (lon - BOUNDS.minLon) / (BOUNDS.maxLon - BOUNDS.minLon) * canvas.width;
+  const y = canvas.height - (lat - BOUNDS.minLat) / (BOUNDS.maxLat - BOUNDS.minLat) * canvas.height;
+  return [x, y];
+}
+function unproject(x, y) {
+  return {
+    lat: BOUNDS.maxLat - (y / canvas.height) * (BOUNDS.maxLat - BOUNDS.minLat),
+    lon: BOUNDS.minLon + (x / canvas.width)  * (BOUNDS.maxLon - BOUNDS.minLon),
+  };
+}
+
+// ── NC border ──────────────────────────────────────────────────────────────
+const NC_BORDER = [
+  [36.56,-84.32],[36.60,-81.70],[36.59,-80.29],[36.55,-75.90],[35.90,-75.50],
+  [35.18,-75.70],[34.50,-76.00],[34.10,-77.85],[33.85,-78.50],[34.00,-79.60],
+  [34.48,-80.78],[34.82,-82.55],[35.00,-83.11],[35.16,-83.68],[35.47,-84.29],[36.56,-84.32]
+];
+
+// ── Corridors ──────────────────────────────────────────────────────────────
+const CORRIDORS = [
+  {id:"I-40",  pts:[[35.11,-84.0],[35.22,-82.6],[35.60,-80.8],[35.78,-78.6],[35.90,-76.2]], cls:"Interstate", aadt:92000},
+  {id:"I-85",  pts:[[35.01,-82.0],[35.26,-80.8],[35.60,-80.2],[36.09,-79.8],[36.45,-79.8]], cls:"Interstate", aadt:78000},
+  {id:"I-77",  pts:[[35.23,-80.84],[35.60,-80.84],[36.00,-80.84],[36.58,-80.84]], cls:"Interstate", aadt:55000},
+  {id:"I-26",  pts:[[35.47,-82.55],[35.60,-82.20],[35.70,-81.95]], cls:"Interstate", aadt:41000},
+  {id:"US-74", pts:[[35.23,-80.84],[34.80,-79.5],[34.50,-78.1],[34.23,-77.95]], cls:"US Route", aadt:28000},
+  {id:"US-64", pts:[[35.78,-78.64],[35.50,-80.5],[35.35,-82.0],[35.15,-83.98]], cls:"US Route", aadt:22000},
+  {id:"NC-12", pts:[[35.91,-75.67],[36.12,-75.73],[36.34,-75.83]], cls:"State Route", aadt:9000},
+];
+
+// ── Seeded RNG ─────────────────────────────────────────────────────────────
+let _seed = 42;
+function rng() { _seed = (_seed * 9301 + 49297) % 233280; return _seed / 233280; }
+function resetRng() { _seed = 42; }
+
+// ── City data ──────────────────────────────────────────────────────────────
+const CITIES = [
+  {name:"Charlotte",     lat:35.23,lon:-80.84,pop:900000},
+  {name:"Raleigh",       lat:35.78,lon:-78.64,pop:470000},
+  {name:"Durham",        lat:35.99,lon:-78.90,pop:285000},
+  {name:"Greensboro",    lat:36.07,lon:-79.79,pop:300000},
+  {name:"Winston-Salem", lat:36.10,lon:-80.24,pop:250000},
+  {name:"Fayetteville",  lat:35.05,lon:-78.88,pop:210000},
+  {name:"Wilmington",    lat:34.23,lon:-77.95,pop:115000},
+  {name:"Asheville",     lat:35.60,lon:-82.55,pop:92000},
+];
+
+// ── Generate datasets ──────────────────────────────────────────────────────
+resetRng();
+
+// Incidents
+const INCIDENTS = [];
+for (let c of CITIES) {
+  const n = Math.floor(c.pop / 8000);
+  for (let i=0; i<n; i++) {
+    INCIDENTS.push({
+      lat: c.lat + (rng()-0.5)*0.4,
+      lon: c.lon + (rng()-0.5)*0.6,
+      fatal: rng() < 0.08,
+      city: c.name,
+    });
+  }
+}
+
+// H3 hex grid
+function hexPoints(cx, cy, r) {
+  const pts = [];
+  for (let i=0; i<6; i++) {
+    const a = Math.PI/6 + Math.PI/3*i;
+    pts.push([cx + r*Math.cos(a), cy + r*Math.sin(a)]);
+  }
+  return pts;
+}
+
+let HEX_GRID = [];
+function buildHexGrid() {
+  HEX_GRID = [];
+  const W = canvas.width, H = canvas.height;
+  const hexR = Math.max(10, W/52);
+  const hexW = hexR * Math.sqrt(3);
+  const rows = Math.ceil(H / (hexR*1.5)) + 1;
+  const cols = Math.ceil(W / hexW) + 1;
+  for (let row=0; row<rows; row++) {
+    for (let col=0; col<cols; col++) {
+      const cx = col * hexW + (row%2 * hexW/2);
+      const cy = row * hexR * 1.5;
+      const {lat,lon} = unproject(cx, cy);
+      if (lat < 33.7 || lat > 36.7 || lon < -84.5 || lon > -75.2) continue;
+      let count=0, fatals=0;
+      for (let inc of INCIDENTS) {
+        const dx=inc.lon-lon, dy=inc.lat-lat;
+        if (Math.sqrt(dx*dx+dy*dy)<0.38) { count++; if(inc.fatal) fatals++; }
+      }
+      const h3approx = `8${Math.abs(Math.floor(lat*100)).toString(16)}${Math.abs(Math.floor(lon*100)).toString(16)}ff`;
+      HEX_GRID.push({cx,cy,lat,lon,count,fatals,pts:hexPoints(cx,cy,hexR-1),h3:h3approx});
+    }
+  }
+}
+
+// Bridges
+resetRng();
+const BRIDGES = [];
+for (let c of CITIES) {
+  const n = Math.floor(c.pop/30000)+3;
+  for (let i=0; i<n; i++) {
+    BRIDGES.push({
+      lat: c.lat+(rng()-0.5)*0.55,
+      lon: c.lon+(rng()-0.5)*0.75,
+      risk: rng()*100,
+      age:  Math.floor(rng()*80)+1940,
+      city: c.name,
+    });
+  }
+}
+
+// Sensors
+resetRng();
+const SENSORS = [];
+for (let cor of CORRIDORS) {
+  for (let i=0; i<cor.pts.length-1; i++) {
+    const n = 2+Math.floor(rng()*3);
+    for (let j=0; j<n; j++) {
+      const t=(j+1)/(n+1);
+      SENSORS.push({
+        lat: cor.pts[i][0]*(1-t)+cor.pts[i+1][0]*t+(rng()-0.5)*0.025,
+        lon: cor.pts[i][1]*(1-t)+cor.pts[i+1][1]*t+(rng()-0.5)*0.04,
+        route: cor.id,
+        type:  ['Loop','Radar','CCTV'][Math.floor(rng()*3)],
+        uptime: 0.7+rng()*0.3,
+      });
+    }
+  }
+}
+
+// Work zones
+resetRng();
+const WORKZONES = [];
+for (let cor of CORRIDORS) {
+  const n = Math.floor(rng()*4)+1;
+  for (let i=0; i<n; i++) {
+    const idx = Math.floor(rng()*(cor.pts.length-1));
+    const t = rng();
+    const ni = Math.min(idx+1,cor.pts.length-1);
+    WORKZONES.push({
+      lat: cor.pts[idx][0]*(1-t)+cor.pts[ni][0]*t,
+      lon: cor.pts[idx][1]*(1-t)+cor.pts[ni][1]*t,
+      route: cor.id,
+      type:  ['Lane Reduction','Road Closure','Shoulder Closure'][Math.floor(rng()*3)],
+    });
+  }
+}
+
+// ── Draw helpers ───────────────────────────────────────────────────────────
+function drawBase() {
+  ctx.fillStyle = '#0a0e1a';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // subtle grid
+  ctx.strokeStyle = 'rgba(79,142,247,0.04)';
+  ctx.lineWidth = 1;
+  for (let x=0; x<canvas.width; x+=40) {
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke();
+  }
+  for (let y=0; y<canvas.height; y+=40) {
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(canvas.width,y); ctx.stroke();
+  }
+
+  // NC land fill
+  ctx.beginPath();
+  for (let i=0; i<NC_BORDER.length; i++) {
+    const [x,y] = project(NC_BORDER[i][0], NC_BORDER[i][1]);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#0f1525';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(79,142,247,0.35)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // City labels
+  ctx.font = `9px 'DM Mono', monospace`;
+  ctx.textAlign = 'center';
+  for (let c of CITIES) {
+    const [x,y] = project(c.lat, c.lon);
+    ctx.fillStyle = 'rgba(122,140,175,0.7)';
+    ctx.fillText(c.name.toUpperCase(), x, y+3);
+  }
+}
+
+function drawCorridors(highlightId=null) {
+  const clsColor = c => c==='Interstate'?'#4f8ef7':c==='US Route'?'#f59e0b':'#00d4aa';
+  for (let cor of CORRIDORS) {
+    const alpha = highlightId && highlightId!==cor.id ? 0.15 : 1.0;
+    ctx.globalAlpha = alpha;
+    ctx.beginPath();
+    for (let i=0; i<cor.pts.length; i++) {
+      const [x,y] = project(cor.pts[i][0], cor.pts[i][1]);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.strokeStyle = clsColor(cor.cls);
+    ctx.lineWidth = cor.cls==='Interstate' ? 3 : 1.8;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Route label at midpoint
+    const mid = cor.pts[Math.floor(cor.pts.length/2)];
+    const [lx,ly] = project(mid[0], mid[1]);
+    ctx.fillStyle = clsColor(cor.cls);
+    ctx.font = `bold 9px 'DM Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(cor.id, lx, ly-6);
+  }
+}
+
+// ── Layer renderers ────────────────────────────────────────────────────────
+let currentLayer = 'incidents';
+
+function drawLayer() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawBase();
+
+  if (currentLayer === 'incidents') {
+    buildHexGrid();
+    for (let cell of HEX_GRID) {
+      if (cell.count === 0) continue;
+      let color;
+      if      (cell.fatals >= 3)    color = '#ef4444';
+      else if (cell.fatals >= 1)    color = '#f46d43';
+      else if (cell.count >= 10)    color = '#fdae61';
+      else if (cell.count >= 5)     color = '#fee090';
+      else                          color = '#ffffbf';
+      const alpha = Math.min(0.18 + cell.count*0.065, 0.82);
+      ctx.beginPath();
+      ctx.moveTo(cell.pts[0][0],cell.pts[0][1]);
+      for (let i=1;i<6;i++) ctx.lineTo(cell.pts[i][0],cell.pts[i][1]);
+      ctx.closePath();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+    for (let inc of INCIDENTS) {
+      if (!inc.fatal) continue;
+      const [x,y] = project(inc.lat, inc.lon);
+      ctx.beginPath(); ctx.arc(x,y,2.5,0,Math.PI*2);
+      ctx.fillStyle = '#a855f7';
+      ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
+    }
+    updateLegend([
+      {color:'#ef4444', label:'3+ fatalities (H3 cell)'},
+      {color:'#f46d43', label:'1–2 fatalities'},
+      {color:'#fdae61', label:'10+ incidents'},
+      {color:'#fee090', label:'5–9 incidents'},
+      {color:'#a855f7', label:'Fatal incident point'},
+    ]);
+    updateStats([
+      {val:INCIDENTS.length, lbl:'Total incidents'},
+      {val:INCIDENTS.filter(i=>i.fatal).length, lbl:'Fatal'},
+      {val:HEX_GRID.filter(c=>c.count>0).length, lbl:'H3 cells'},
+      {val:HEX_GRID.filter(c=>c.fatals>0).length, lbl:'Hotspot cells'},
+    ]);
+  }
+
+  else if (currentLayer === 'corridors') {
+    drawCorridors();
+    // Pavement dots
+    resetRng();
+    for (let cor of CORRIDORS) {
+      for (let i=0; i<cor.pts.length-1; i++) {
+        const t=0.5;
+        const lat=cor.pts[i][0]*(1-t)+cor.pts[i+1][0]*t;
+        const lon=cor.pts[i][1]*(1-t)+cor.pts[i+1][1]*t;
+        const [x,y] = project(lat,lon);
+        const q = rng();
+        const col = q<0.2?'#ef4444':q<0.5?'#f59e0b':'#22c55e';
+        ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
+        ctx.fillStyle=col; ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+        ctx.strokeStyle='rgba(0,0,0,0.3)'; ctx.lineWidth=0.5; ctx.stroke();
+      }
+    }
+    updateLegend([
+      {color:'#4f8ef7', label:'Interstate'},
+      {color:'#f59e0b', label:'US Route'},
+      {color:'#00d4aa', label:'State Route'},
+      {color:'#22c55e', label:'Good pavement'},
+      {color:'#f59e0b', label:'Fair pavement'},
+      {color:'#ef4444', label:'Poor pavement'},
+    ]);
+    updateStats([
+      {val:CORRIDORS.length, lbl:'Corridors'},
+      {val:CORRIDORS.filter(c=>c.cls==='Interstate').length, lbl:'Interstates'},
+      {val:Math.round(CORRIDORS.reduce((s,c)=>s+c.aadt,0)/CORRIDORS.length/1000)+'K', lbl:'Avg AADT'},
+      {val:SENSORS.length, lbl:'Sensors'},
+    ]);
+  }
+
+  else if (currentLayer === 'bridges') {
+    drawCorridors();
+    for (let b of BRIDGES) {
+      const [x,y] = project(b.lat, b.lon);
+      const col = b.risk>=70?'#ef4444':b.risk>=45?'#f59e0b':'#22c55e';
+      const sz = 2.5 + b.risk/32;
+      ctx.beginPath(); ctx.arc(x,y,sz,0,Math.PI*2);
+      ctx.fillStyle=col; ctx.globalAlpha=0.85; ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=0.5; ctx.stroke();
+    }
+    updateLegend([
+      {color:'#ef4444', label:'Priority 1 – Immediate (≥70)'},
+      {color:'#f59e0b', label:'Priority 2 – Near Term (45–69)'},
+      {color:'#22c55e', label:'Priority 3–4 – Monitor (<45)'},
+    ]);
+    updateStats([
+      {val:BRIDGES.length, lbl:'Bridges'},
+      {val:BRIDGES.filter(b=>b.risk>=70).length, lbl:'Priority 1'},
+      {val:BRIDGES.filter(b=>b.risk>=45&&b.risk<70).length, lbl:'Priority 2'},
+      {val:BRIDGES.filter(b=>b.age<1970).length, lbl:'Pre-1970'},
+    ]);
+  }
+
+  else if (currentLayer === 'sensors') {
+    drawCorridors();
+    const typeColor = {Loop:'#06b6d4', Radar:'#a855f7', CCTV:'#f97316'};
+    for (let s of SENSORS) {
+      const [x,y] = project(s.lat, s.lon);
+      const col = typeColor[s.type]||'#888';
+      const active = s.uptime > 0.9;
+      ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2);
+      ctx.fillStyle = active ? col : '#4a5a7a';
+      ctx.globalAlpha = active ? 0.9 : 0.5;
+      ctx.fill(); ctx.globalAlpha=1;
+      if (active) {
+        ctx.beginPath(); ctx.arc(x,y,5.5,0,Math.PI*2);
+        ctx.strokeStyle = col; ctx.globalAlpha=0.25; ctx.lineWidth=1.5; ctx.stroke();
+        ctx.globalAlpha=1;
+      }
+    }
+    updateLegend([
+      {color:'#06b6d4', label:'Inductive Loop'},
+      {color:'#a855f7', label:'Radar'},
+      {color:'#f97316', label:'Video/CCTV'},
+      {color:'#4a5a7a', label:'Low uptime (<90%)'},
+    ]);
+    updateStats([
+      {val:SENSORS.length, lbl:'Sensors'},
+      {val:SENSORS.filter(s=>s.uptime>0.9).length, lbl:'High uptime'},
+      {val:Math.round(SENSORS.filter(s=>s.uptime>0.9).length/SENSORS.length*100)+'%', lbl:'Network uptime'},
+      {val:[...new Set(SENSORS.map(s=>s.route))].length, lbl:'Routes covered'},
+    ]);
+  }
+
+  else if (currentLayer === 'workzones') {
+    drawCorridors();
+    for (let wz of WORKZONES) {
+      const [x,y] = project(wz.lat, wz.lon);
+      // Warning triangle
+      ctx.beginPath();
+      ctx.moveTo(x, y-10); ctx.lineTo(x+9, y+5); ctx.lineTo(x-9, y+5); ctx.closePath();
+      ctx.fillStyle='#fbbf24'; ctx.globalAlpha=0.92; ctx.fill(); ctx.globalAlpha=1;
+      ctx.strokeStyle='#92400e'; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillStyle='#92400e'; ctx.font='bold 7px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('!', x, y+3);
+    }
+    updateLegend([
+      {color:'#fbbf24', label:'Active work zone'},
+    ]);
+    updateStats([
+      {val:WORKZONES.length, lbl:'Work zones'},
+      {val:WORKZONES.filter(w=>w.type==='Road Closure').length, lbl:'Road closures'},
+      {val:WORKZONES.filter(w=>w.type==='Lane Reduction').length, lbl:'Lane reductions'},
+      {val:[...new Set(WORKZONES.map(w=>w.route))].length, lbl:'Affected routes'},
+    ]);
+  }
+}
+
+// ── UI helpers ─────────────────────────────────────────────────────────────
+function updateLegend(items) {
+  document.getElementById('legend').innerHTML = items.map(i =>
+    `<div class="legend-item"><div class="swatch" style="background:${i.color}"></div>${i.label}</div>`
+  ).join('');
+}
+
+function updateStats(items) {
+  document.getElementById('stats').innerHTML = items.map(i =>
+    `<div class="stat"><div class="stat-val">${i.val}</div><div class="stat-lbl">${i.lbl}</div></div>`
+  ).join('');
+}
+
+function setLayer(layer, btn) {
+  currentLayer = layer;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  drawLayer();
+  document.getElementById('info').innerHTML = '<span class="label">hover</span>Move over a feature for details';
+}
+
+// ── Hover ──────────────────────────────────────────────────────────────────
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (canvas.width  / rect.width);
+  const my = (e.clientY - rect.top)  * (canvas.height / rect.height);
+  const {lat, lon} = unproject(mx, my);
+
+  document.getElementById('coord-lat').textContent = lat.toFixed(4);
+  document.getElementById('coord-lon').textContent = lon.toFixed(4);
+
+  const info = document.getElementById('info');
+
+  if (currentLayer === 'incidents') {
+    let best=null, bestD=Infinity;
+    for (let cell of HEX_GRID) {
+      if (!cell.count) continue;
+      const d = Math.hypot(cell.cx-mx, cell.cy-my);
+      if (d<bestD) { bestD=d; best=cell; }
+    }
+    if (best && bestD < 22) {
+      document.getElementById('coord-h3').textContent = best.h3.slice(0,12)+'…';
+      info.innerHTML = `<span class="label">H3 CELL</span>Incidents: ${best.count} · Fatalities: ${best.fatals} · Lat ${best.lat.toFixed(3)} Lon ${best.lon.toFixed(3)}`;
+    } else {
+      document.getElementById('coord-h3').textContent = '–';
+      info.innerHTML = '<span class="label">hover</span>Move over an H3 hexagon for cell details';
+    }
+  } else if (currentLayer === 'corridors') {
+    let best=null, bestD=Infinity;
+    for (let cor of CORRIDORS) {
+      for (let pt of cor.pts) {
+        const [x,y] = project(pt[0],pt[1]);
+        const d = Math.hypot(x-mx, y-my);
+        if (d<bestD) { bestD=d; best=cor; }
+      }
+    }
+    if (best && bestD < 20) {
+      info.innerHTML = `<span class="label">CORRIDOR</span>${best.id} · ${best.cls} · AADT ${best.aadt.toLocaleString()}`;
+    }
+  } else if (currentLayer === 'bridges') {
+    let best=null, bestD=Infinity;
+    for (let b of BRIDGES) {
+      const [x,y] = project(b.lat,b.lon);
+      const d = Math.hypot(x-mx,y-my);
+      if (d<bestD) { bestD=d; best=b; }
+    }
+    if (best && bestD < 16) {
+      const tier = best.risk>=70?'Priority 1':best.risk>=45?'Priority 2':'Priority 3-4';
+      info.innerHTML = `<span class="label">BRIDGE</span>Near ${best.city} · Risk Score ${best.risk.toFixed(1)} · Built ${best.age} · ${tier}`;
+    }
+  } else if (currentLayer === 'sensors') {
+    let best=null, bestD=Infinity;
+    for (let s of SENSORS) {
+      const [x,y] = project(s.lat,s.lon);
+      const d = Math.hypot(x-mx,y-my);
+      if (d<bestD) { bestD=d; best=s; }
+    }
+    if (best && bestD < 14) {
+      info.innerHTML = `<span class="label">SENSOR</span>${best.type} · Route ${best.route} · Uptime ${(best.uptime*100).toFixed(0)}% · ${best.uptime>0.9?'Active':'Degraded'}`;
+    }
+  } else if (currentLayer === 'workzones') {
+    let best=null, bestD=Infinity;
+    for (let wz of WORKZONES) {
+      const [x,y] = project(wz.lat,wz.lon);
+      const d = Math.hypot(x-mx,y-my);
+      if (d<bestD) { bestD=d; best=wz; }
+    }
+    if (best && bestD < 20) {
+      info.innerHTML = `<span class="label">WORK ZONE</span>Route ${best.route} · ${best.type}`;
+    }
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+resize();
+</script>
+</body>
+</html>

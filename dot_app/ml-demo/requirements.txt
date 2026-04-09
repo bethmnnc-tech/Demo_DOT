@@ -1,0 +1,6 @@
+streamlit>=1.30.0
+mlflow[databricks]
+pandas
+scikit-learn==1.6.1
+numpy==2.1.3
+joblib

@@ -1,0 +1,10 @@
+# app.yaml — Databricks Apps configuration
+# Place this file in the root of your app folder alongside app.py
+
+command: ["python", "app.py"]
+
+env:
+  - name: PORT
+    value: "8000"
+  - name: FLASK_ENV
+    value: "production"
