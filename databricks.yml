@@ -11,11 +11,7 @@ bundle:
 
 # ── Permissions ───────────────────────────────────────────────────────────────
 permissions:
-  - user_name: beth.ramsey@trace3.com
-    level: CAN_MANAGE
   - service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
-    level: CAN_MANAGE
-  - group_name: users
     level: CAN_MANAGE
 
 # ── Global variables (overridden per target) ──────────────────────────────────
@@ -46,7 +42,7 @@ variables:
 
 # ── Workspace settings ────────────────────────────────────────────────────────
 workspace:
-  root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+  root_path: ~/.bundle/${bundle.name}/${bundle.target}
 
 # ── Resources ─────────────────────────────────────────────────────────────────
 resources:
