@@ -1,5 +1,5 @@
 # =============================================================================
-# NOTEBOOK 3: DOT Gold Layer – Analytical Aggregations & Data Marts
+# NOTEBOOK 3: DOT Gold Layer – Analytical Aggregations & Data Mart s
 # Databricks Notebook | Language: PySpark + SQL
 # Description: Builds Gold-layer aggregated tables and views used by
 #              dashboards, ML models, and reporting teams.
