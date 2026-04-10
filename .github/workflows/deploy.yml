@@ -1,11 +1,61 @@
-# This is the updated deploy.yml
+# =============================================================================
+# CD Pipeline — Deploy Databricks Asset Bundle on merge to main
+# Runs after PRs are merged to deploy all resources to the target environment
+# =============================================================================
+name: CD — Deploy Bundle
 
-# Other configurations...
+on:
+  push:
+    branches: [main]
+    paths:
+      - "databricks.yml"
+      - "Demo_Code/**"
+      - "dbt_demo/**"
+      - "dot_app/**"
+      - ".github/workflows/**"
 
-- name: Deploy to Development
-  run: databricks bundle deploy --target dev --force
+permissions:
+  contents: read
+  id-token: write
 
-# Other configurations...
+jobs:
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-# - name: Deploy to Production
-#   run: databricks bundle deploy --target prod --force
+      - name: Install Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Validate bundle
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle validate --target dev
+
+      - name: Deploy to dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target dev --force
+
+  # ── Uncomment when ready for production deployments ──────────────────────────
+  # deploy-prod:
+  #   name: Deploy to Production
+  #   runs-on: ubuntu-latest
+  #   needs: deploy-dev
+  #   environment: production          # requires GitHub environment approval
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Install Databricks CLI
+  #       uses: databricks/setup-cli@main
+  #
+  #     - name: Deploy to prod
+  #       env:
+  #         DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+  #         DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+  #       run: databricks bundle deploy --target prod --force
