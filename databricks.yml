@@ -170,9 +170,14 @@ resources:
       tags:
         project: dot_transportation
         layer: dbt
+        environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies: []
       tasks:
         - task_key: dbt_build_demo
-          cluster_key: "default"  # ADD THIS LINE
+          environment_key: "default"  # ADD THIS LINE
           dbt_task:
             source: WORKSPACE
             warehouse_id: 269f3f8ac232d6f2
