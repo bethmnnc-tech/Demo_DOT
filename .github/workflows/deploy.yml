@@ -7,5 +7,5 @@
 
 # Other configurations...
 
-- name: Deploy to Production
-  run: databricks bundle deploy --target prod --force
+# - name: Deploy to Production
+#   run: databricks bundle deploy --target prod --force

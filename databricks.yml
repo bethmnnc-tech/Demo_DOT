@@ -174,18 +174,20 @@ resources:
         - environment_key: default
           spec:
             client: "1"
-            dependencies: []
+            dependencies:
+              - dbt-databricks
       tasks:
         - task_key: dbt_build_demo
-          environment_key: "default"  # ADD THIS LINE
+          environment_key: default
           dbt_task:
             source: WORKSPACE
             warehouse_id: 269f3f8ac232d6f2
+            catalog: ${var.catalog}
             project_directory: ${workspace.file_path}/dbt_demo
             profiles_directory: ${workspace.file_path}/dbt_demo
             commands:
               - "dbt deps"
-              - "dbt build --target databricks"
+              - "dbt build"
 
   # ── DLT Pipeline: Streaming Ingestion ──────────────────────────────────────
   pipelines:
