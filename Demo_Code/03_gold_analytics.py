@@ -299,7 +299,7 @@ print(f"✓ Gold executive_kpi_scorecard → {df_scorecard.count():,} rows")
 
 # ─── Quick preview ──────────────────────────────────────────────────────────
 print("\n── Executive KPI Scorecard Preview ──")
-spark.sql("""
+spark.sql(f"""
 SELECT state_code,
        total_incidents,
        total_fatalities,
