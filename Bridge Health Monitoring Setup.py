@@ -1,5 +1,10 @@
 # Databricks notebook source
 # DBTITLE 1,Setup Lakehouse Monitor and refresh metric tables
+dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+dbutils.widgets.text("catalog", "main")
+BASE_PATH = dbutils.widgets.get("base_path")
+CATALOG   = dbutils.widgets.get("catalog")
+
 import json, requests
 from databricks.sdk import WorkspaceClient
 
