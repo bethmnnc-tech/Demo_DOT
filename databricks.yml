@@ -170,7 +170,7 @@ resources:
       tags:
         project: dot_transportation
         layer: dbt
-        environments:
+      environments:
         - environment_key: default
           spec:
             client: "1"
