@@ -14,9 +14,12 @@ clean-targets:
   - dbt_packages
   - logs
 
+on-run-start:
+  - "USE CATALOG main"
+
 vars:
   databricks_catalog: main
-  databricks_bronze_schema: bronze
+  databricks_bronze_schema: dot_silver
   onprem_database: DOTWarehouse
   onprem_raw_schema: raw_dot
 
@@ -25,6 +28,7 @@ models:
     +persist_docs:
       relation: true
       columns: true
+    +catalog: main
     silver:
       +materialized: table
       +schema: silver_demo
@@ -33,4 +37,3 @@ models:
       +materialized: table
       +schema: gold_demo
       +tags: ["gold", "demo"]
-

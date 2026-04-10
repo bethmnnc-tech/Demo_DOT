@@ -6,8 +6,8 @@ sources:
       Bronze-style source tables that dbt reads from. For the Databricks demo,
       these are intended to be external tables registered over the existing
       Delta locations written by the notebooks.
-    database: "{{ var('databricks_catalog') if target.name == 'databricks' else var('onprem_database') }}"
-    schema: "{{ var('databricks_bronze_schema') if target.name == 'databricks' else var('onprem_raw_schema') }}"
+    database: "{{ var('databricks_catalog') if target.type == 'databricks' else var('onprem_database') }}"
+    schema: "{{ var('databricks_bronze_schema') if target.type == 'databricks' else var('onprem_raw_schema') }}"
     tables:
       - name: traffic_incidents
         description: Raw traffic incident records from the Bronze layer.
@@ -35,4 +35,3 @@ sources:
           - name: year_built
             tests:
               - not_null
-
