@@ -176,7 +176,6 @@ resources:
           dbt_task:
             source: WORKSPACE
             warehouse_id: 269f3f8ac232d6f2
-            environment_key: default
             project_directory: ${workspace.file_path}/dbt_demo
             profiles_directory: ${workspace.file_path}/dbt_demo
             commands:
