@@ -15,7 +15,7 @@ clean-targets:
   - logs
 
 on-run-start:
-  - "USE CATALOG main"
+  - "USE CATALOG {{ var('databricks_catalog') }}"
 
 vars:
   databricks_catalog: main
@@ -28,7 +28,7 @@ models:
     +persist_docs:
       relation: true
       columns: true
-    +catalog: main
+    +catalog: "{{ var('databricks_catalog') }}"
     silver:
       +materialized: table
       +schema: silver_demo

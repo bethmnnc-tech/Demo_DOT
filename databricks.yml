@@ -230,11 +230,20 @@ targets:
     workspace:
       host: https://dbc-a5388842-1c80.cloud.databricks.com
     variables:
-      catalog: main
+      catalog: main_prod
+      base_path: /Volumes/main_prod/default/dot_lakehouse
     # Uncomment after granting servicePrincipal/user role in Account Console:
     # run_as:
     #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
     resources:
+      jobs:
+        dot_dbt_demo:
+          tasks:
+            - task_key: dbt_build_demo
+              dbt_task:
+                commands:
+                  - "dbt deps"
+                  - "dbt build --vars '{databricks_catalog: main_prod}'"
       pipelines:
         dot_streaming_pipeline:
           development: false
