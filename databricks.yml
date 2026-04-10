@@ -169,6 +169,7 @@ resources:
             notebook_path: ./High Risk Corridors Monitoring Setup.py
           timeout_seconds: 1200
 
+    # ── Job 4: dbt Demo ──────────────────────────────────────────────────────
     dot_dbt_demo:
       name: "[${bundle.target}] DOT dbt Demo"
       tags:
@@ -188,7 +189,8 @@ resources:
             warehouse_id: 269f3f8ac232d6f2
             catalog: ${var.catalog}
             project_directory: ${workspace.file_path}/dbt_demo
-            profiles_directory: ${workspace.file_path}/dbt_demo
+            # profiles_directory omitted — @ in workspace path fails POSIX validation;
+            # dbt_task auto-injects a profile when warehouse_id + catalog are set
             commands:
               - "dbt deps"
               - "dbt build"
@@ -197,6 +199,7 @@ resources:
   pipelines:
     dot_streaming_pipeline:
       name: "[${bundle.target}] DOT Streaming Ingestion"
+      allow_duplicate_names: true
       target: ${var.schema_silver}
       libraries:
         - file:
