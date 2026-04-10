@@ -9,9 +9,13 @@
 bundle:
   name: dot_transportation_platform
 
+# ── Run-as identity ───────────────────────────────────────────────────────────
+# To use a service principal, the deploying user must have the
+# servicePrincipal/user role (granted via Account Console).
+# For dev, we use the deploying user's identity instead.
+# run_as:
+#   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
 
-run_as:
-  service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
 # # ── Permissions ───────────────────────────────────────────────────────────────
 # permissions:
 #   - user_name: beth.ramsey@trace3.com
@@ -224,6 +228,9 @@ targets:
       host: https://dbc-a5388842-1c80.cloud.databricks.com
     variables:
       catalog: main
+    # Uncomment after granting servicePrincipal/user role in Account Console:
+    # run_as:
+    #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
     resources:
       pipelines:
         dot_streaming_pipeline:
