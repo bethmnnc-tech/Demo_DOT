@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: gold_incident_summary
+    description: Route and month level incident mart for dashboarding and reporting.
+    columns:
+      - name: state_code
+        tests:
+          - not_null
+      - name: total_incidents
+        tests:
+          - not_null
+          - non_negative
+      - name: fatality_rate
+        description: Fatalities divided by incidents for the grouped slice.
+
+  - name: gold_high_risk_corridors
+    description: Ranked corridor risk mart based on incidents and fatalities.
+    columns:
+      - name: state_rank
+        tests:
+          - not_null
+      - name: risk_tier
+        tests:
+          - not_null
+      - name: incident_count
+        tests:
+          - not_null
+          - non_negative
+
+  - name: gold_bridge_health_summary
+    description: Bridge asset health mart for prioritization and planning.
+    columns:
+      - name: bridge_count
+        tests:
+          - not_null
+          - non_negative
+      - name: avg_risk_score
+        tests:
+          - not_null
+          - non_negative

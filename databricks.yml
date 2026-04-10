@@ -45,6 +45,10 @@ variables:
     description: Root DBFS/UC volume path
     default: /Volumes/main/default/dot_lakehouse
 
+  dbt_default_schema:
+    description: Default schema for the dbt demo profile template
+    default: analytics
+
 # ── Workspace settings ────────────────────────────────────────────────────────
 workspace:
   root_path: ~/.bundle/${bundle.name}/${bundle.target}
@@ -160,6 +164,22 @@ resources:
           notebook_task:
             notebook_path: ./High Risk Corridors Monitoring Setup.py
           timeout_seconds: 1200
+
+    dot_dbt_demo:
+      name: "[${bundle.target}] DOT dbt Demo"
+      tags:
+        project: dot_transportation
+        layer: dbt
+      tasks:
+        - task_key: dbt_build_demo
+          dbt_task:
+            source: WORKSPACE
+            warehouse_id: 269f3f8ac232d6f2
+            project_directory: ${workspace.file_path}/dbt_demo
+            profiles_directory: ${workspace.file_path}/dbt_demo
+            commands:
+              - "dbt deps"
+              - "dbt build --target databricks"
 
   # ── DLT Pipeline: Streaming Ingestion ──────────────────────────────────────
   pipelines:

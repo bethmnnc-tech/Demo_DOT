@@ -1,0 +1,36 @@
+name: dot_dbt_demo
+version: "1.0.0"
+config-version: 2
+
+profile: dot_dbt_demo
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+
+clean-targets:
+  - target
+  - dbt_packages
+  - logs
+
+vars:
+  databricks_catalog: main
+  databricks_bronze_schema: bronze
+  onprem_database: DOTWarehouse
+  onprem_raw_schema: raw_dot
+
+models:
+  dot_dbt_demo:
+    +persist_docs:
+      relation: true
+      columns: true
+    silver:
+      +materialized: table
+      +schema: silver_demo
+      +tags: ["silver", "demo"]
+    gold:
+      +materialized: table
+      +schema: gold_demo
+      +tags: ["gold", "demo"]
+

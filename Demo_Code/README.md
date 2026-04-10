@@ -4,6 +4,10 @@
 A complete Lakehouse data engineering solution for Department of Transportation
 data management, analytics, and predictive modeling built on Databricks + Delta Lake.
 
+For an additive `dbt Core` demo that models a shared Silver/Gold transformation layer
+for both Databricks and an on-prem SQL target, see
+[`dbt_demo/`](/C:/Users/Frank.Matteson/Documents/GitHub/Demo_DOT/dbt_demo).
+
 ---
 
 ## Architecture: Medallion Lakehouse
