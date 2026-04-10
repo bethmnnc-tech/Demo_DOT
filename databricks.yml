@@ -175,6 +175,7 @@ resources:
           dbt_task:
             source: WORKSPACE
             warehouse_id: 269f3f8ac232d6f2
+            environment_key: default
             project_directory: ${workspace.file_path}/dbt_demo
             profiles_directory: ${workspace.file_path}/dbt_demo
             commands:
@@ -185,7 +186,7 @@ resources:
   pipelines:
     dot_streaming_pipeline:
       name: "[${bundle.target}] DOT Streaming Ingestion"
-      target: ${var.catalog}.${var.schema_silver}
+      target: ${var.schema_silver}
       libraries:
         - file:
             path: ./Demo_Code/05_streaming_dlt.py
