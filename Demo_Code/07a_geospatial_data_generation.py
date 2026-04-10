@@ -40,12 +40,28 @@ from pyspark.sql.types import (
     StructField, StructType, TimestampType,
 )
 
+import sys
+
+# ── Configuration ────────────────────────────────────────────────────────────
+# When run by a job: parameters arrive via sys.argv
+# When run interactively: dbutils widgets provide a UI with dev defaults
+if len(sys.argv) >= 3:
+    BASE_PATH = sys.argv[1]
+    CATALOG   = sys.argv[2]
+else:
+    dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+    dbutils.widgets.text("catalog", "main")
+    BASE_PATH = dbutils.widgets.get("base_path")
+    CATALOG   = dbutils.widgets.get("catalog")
+
+print(f"  BASE_PATH = {BASE_PATH}")
+print(f"  CATALOG   = {CATALOG}")
+
 spark = SparkSession.builder \
     .appName("DOT_GeospatialData") \
     .config("spark.sql.adaptive.enabled", "true") \
     .getOrCreate()
 
-BASE_PATH  = "/Volumes/main/default/dot_lakehouse"
 GEO_PATH   = f"{BASE_PATH}/bronze/geospatial"
 random.seed(42)
 np.random.seed(42)

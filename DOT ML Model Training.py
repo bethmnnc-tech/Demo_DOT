@@ -1,4 +1,11 @@
 # Databricks notebook source
+dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+dbutils.widgets.text("catalog", "main")
+BASE_PATH = dbutils.widgets.get("base_path")
+CATALOG   = dbutils.widgets.get("catalog")
+
+# COMMAND ----------
+
 # DBTITLE 1,Install dependencies
 # MAGIC %pip install --upgrade mlflow[databricks] scikit-learn==1.6.1
 # MAGIC dbutils.library.restartPython()
@@ -54,7 +61,7 @@ from pyspark.sql.types import (
 )
 
 random.seed(42)
-BASE_PATH = "/Volumes/main/default/dot_lakehouse"
+# BASE_PATH set via widgets above
 
 states = ["NC","VA","SC","TN","GA","FL","TX","CA","NY","IL"]
 pavement_types = ["Asphalt","Concrete","Composite","Gravel","Chip Seal"]
@@ -179,7 +186,7 @@ df_pavements.groupBy("condition_rating").count().orderBy("condition_rating").sho
 # ═══ Re-run Silver Transformation for Pavement ═══
 from pyspark.sql import functions as F
 
-BASE_PATH = "/Volumes/main/default/dot_lakehouse"
+# BASE_PATH set via widgets above
 BRONZE_PATH = f"{BASE_PATH}/bronze"
 SILVER_PATH = f"{BASE_PATH}/silver"
 
@@ -216,9 +223,9 @@ df_pav_silver.write.format("delta").mode("overwrite").option("overwriteSchema","
     .save(f"{SILVER_PATH}/pavement_conditions")
 
 # Also update the registered table
-spark.sql("CREATE DATABASE IF NOT EXISTS main.dot_silver")
+spark.sql(f"CREATE DATABASE IF NOT EXISTS {CATALOG}.dot_silver")
 spark.sql(f"""
-    CREATE OR REPLACE TABLE main.dot_silver.pavement_conditions
+    CREATE OR REPLACE TABLE {CATALOG}.dot_silver.pavement_conditions
     AS SELECT * FROM delta.`{SILVER_PATH}/pavement_conditions`
 """)
 

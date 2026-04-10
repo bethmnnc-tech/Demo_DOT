@@ -82,6 +82,9 @@ resources:
         - task_key: generate_bronze
           spark_python_task:
             python_file: ./Demo_Code/01_generate_sample_data.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 1800
@@ -91,6 +94,9 @@ resources:
             - task_key: generate_bronze
           spark_python_task:
             python_file: ./Demo_Code/02_silver_transformations.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 1800
@@ -100,6 +106,9 @@ resources:
             - task_key: transform_silver
           spark_python_task:
             python_file: ./Demo_Code/03_gold_analytics.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 1800
@@ -109,6 +118,9 @@ resources:
             - task_key: transform_silver
           spark_python_task:
             python_file: ./Demo_Code/07a_geospatial_data_generation.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 1800
@@ -118,6 +130,9 @@ resources:
             - task_key: geospatial_generation
           spark_python_task:
             python_file: ./Demo_Code/07b_geospatial_analytics.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 1800
@@ -145,6 +160,9 @@ resources:
         - task_key: train_and_register
           spark_python_task:
             python_file: ./Demo_Code/04_ml_models.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 3600
@@ -162,11 +180,17 @@ resources:
         - task_key: bridge_health_monitor
           notebook_task:
             notebook_path: ./Bridge Health Monitoring Setup.py
+            base_parameters:
+              base_path: "${var.base_path}"
+              catalog: "${var.catalog}"
           timeout_seconds: 1200
 
         - task_key: high_risk_corridors_monitor
           notebook_task:
             notebook_path: ./High Risk Corridors Monitoring Setup.py
+            base_parameters:
+              base_path: "${var.base_path}"
+              catalog: "${var.catalog}"
           timeout_seconds: 1200
 
     # ── Job 4: dbt Demo ──────────────────────────────────────────────────────
@@ -206,6 +230,7 @@ resources:
             path: ./Demo_Code/05_streaming_dlt.py
       configuration:
         base_path: ${var.base_path}
+        catalog: ${var.catalog}
       continuous: false
       development: true
       serverless: true

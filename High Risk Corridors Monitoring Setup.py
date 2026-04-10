@@ -1,4 +1,9 @@
 # Databricks notebook source
+dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+dbutils.widgets.text("catalog", "main")
+BASE_PATH = dbutils.widgets.get("base_path")
+CATALOG   = dbutils.widgets.get("catalog")
+
 import requests, time
 from databricks.sdk import WorkspaceClient
 
@@ -6,7 +11,7 @@ w = WorkspaceClient()
 auth_headers = w.config._header_factory()
 auth_headers["Content-Type"] = "application/json"
 
-TABLE = "main.dot_gold.high_risk_corridors"
+TABLE = f"{CATALOG}.dot_gold.high_risk_corridors"
 BASE = w.config.host + "/api/2.1/unity-catalog/tables/" + TABLE + "/monitor"
 
 # Wait for monitor to become ACTIVE
@@ -42,7 +47,7 @@ if resp.status_code == 200:
 
     # Verify
     for suffix in ["profile_metrics", "drift_metrics"]:
-        cnt = spark.table("main.dot_gold.high_risk_corridors_" + suffix).count()
+        cnt = spark.table(f"{CATALOG}.dot_gold.high_risk_corridors_" + suffix).count()
         print("high_risk_corridors_" + suffix + ": " + str(cnt) + " rows")
     print("\nDone! Metric tables are ready.")
 else:
