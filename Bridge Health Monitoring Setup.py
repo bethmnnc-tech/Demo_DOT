@@ -9,7 +9,7 @@ w = WorkspaceClient()
 auth_headers = w.config._header_factory()
 auth_headers["Content-Type"] = "application/json"
 
-TABLE = "main.dot_gold.bridge_health_summary"
+TABLE = f"{CATALOG}.dot_gold.bridge_health_summary"
 BASE = w.config.host + "/api/2.1/unity-catalog/tables/" + TABLE + "/monitor"
 
 # Create snapshot monitor (current state only, no time series)
@@ -17,8 +17,8 @@ resp = requests.post(
     BASE,
     headers=auth_headers,
     json={
-        "output_schema_name": "main.dot_gold",
-        "assets_dir": "/Workspace/Repos/Beth_Development/Demo_DOT/databricks_lakehouse_monitoring/main.dot_gold.bridge_health_summary",
+        "output_schema_name": f"{CATALOG}.dot_gold",
+        f"assets_dir": f"/Workspace/Repos/Beth_Development/Demo_DOT/databricks_lakehouse_monitoring/{CATALOG}.dot_gold.bridge_health_summary",
         "snapshot": {},
     },
 )
@@ -40,7 +40,7 @@ w = WorkspaceClient()
 auth_headers = w.config._header_factory()
 auth_headers["Content-Type"] = "application/json"
 
-TABLE = "main.dot_gold.bridge_health_summary"
+TABLE = f"{CATALOG}.dot_gold.bridge_health_summary"
 BASE = w.config.host + "/api/2.1/unity-catalog/tables/" + TABLE + "/monitor"
 
 # Trigger refresh
@@ -67,7 +67,7 @@ if resp.status_code == 200:
     print()
     for suffix in ["profile_metrics", "drift_metrics"]:
         try:
-            cnt = spark.table("main.dot_gold.bridge_health_summary_" + suffix).count()
+            cnt = spark.table(f"{CATALOG}.dot_gold.bridge_health_summary_" + suffix).count()
             print("bridge_health_summary_" + suffix + ": " + str(cnt) + " rows")
         except Exception as e:
             print("bridge_health_summary_" + suffix + ": " + str(e))

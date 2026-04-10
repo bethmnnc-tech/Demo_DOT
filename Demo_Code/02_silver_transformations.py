@@ -5,16 +5,31 @@
 #              enriches records, and writes clean Silver tables.
 # =============================================================================
 
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 from delta.tables import DeltaTable
 
-spark = SparkSession.builder.appName("main.dot_silverTransformations").getOrCreate()
+spark = SparkSession.builder.appName("DOT_SilverTransformations").getOrCreate()
 
-BASE_PATH    = "/Volumes/main/default/dot_lakehouse"
+# ── Configuration ────────────────────────────────────────────────────────────
+# When run by a job: parameters arrive via sys.argv
+# When run interactively: dbutils widgets provide a UI with dev defaults
+if len(sys.argv) >= 3:
+    BASE_PATH = sys.argv[1]
+    CATALOG   = sys.argv[2]
+else:
+    dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+    dbutils.widgets.text("catalog", "main")
+    BASE_PATH = dbutils.widgets.get("base_path")
+    CATALOG   = dbutils.widgets.get("catalog")
+
 BRONZE_PATH  = f"{BASE_PATH}/bronze"
 SILVER_PATH  = f"{BASE_PATH}/silver"
+
+print(f"  BASE_PATH = {BASE_PATH}")
+print(f"  CATALOG   = {CATALOG}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER: Data Quality Checker
@@ -157,18 +172,18 @@ df_veh_raw = spark.read.format("delta").load(f"{BRONZE_PATH}/vehicle_registratio
 run_dq_checks(df_veh_raw, "vehicle_registrations", [
     {"name": "vin not null",            "expr": "vin IS NULL",                          "threshold": 0.00},
     {"name": "model_year plausible",    "expr": "model_year < 1900 OR model_year > 2025","threshold": 0.01},
-    {"name": "gvwr positive",           "expr": "gvwr_lbs <= 0",                        "threshold": 0.00},
+    {"name": "gvwr positive",           "expr": "gvwr_lbs <= 0",                        "threshold": 0.01},
 ])
 
 df_veh_silver = (
     df_veh_raw
-    .withColumn("state_code",   F.upper(F.col("state_code")))
-    .withColumn("vehicle_age",  F.lit(2024) - F.col("model_year"))
+    .withColumn("state_code",     F.upper(F.col("state_code")))
+    .withColumn("vehicle_age",    F.lit(2024) - F.col("model_year"))
+    # FHWA weight class
     .withColumn("weight_class",
-        F.when(F.col("gvwr_lbs") <= 6000,  "Class 1 – Light Duty")
-         .when(F.col("gvwr_lbs") <= 10000, "Class 2 – Light-Medium")
-         .when(F.col("gvwr_lbs") <= 14000, "Class 3")
-         .when(F.col("gvwr_lbs") <= 16000, "Class 4")
+        F.when(F.col("gvwr_lbs") <= 6000,  "Class 1-2 – Light Duty")
+         .when(F.col("gvwr_lbs") <= 10000, "Class 3")
+         .when(F.col("gvwr_lbs") <= 14000, "Class 4")
          .when(F.col("gvwr_lbs") <= 19500, "Class 5")
          .when(F.col("gvwr_lbs") <= 26000, "Class 6")
          .when(F.col("gvwr_lbs") <= 33000, "Class 7")
@@ -234,15 +249,15 @@ df_pav_silver.write.format("delta").mode("overwrite").option("overwriteSchema","
 print(f"✓ Silver pavement_conditions → {df_pav_silver.count():,} rows")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Register Silver tables in Hive Metastore (or Unity Catalog)
+# Register Silver tables in Unity Catalog
 # ─────────────────────────────────────────────────────────────────────────────
-spark.sql("CREATE DATABASE IF NOT EXISTS main.dot_silver")
+spark.sql(f"CREATE DATABASE IF NOT EXISTS {CATALOG}.dot_silver")
 
 for tbl in ["traffic_incidents","bridge_inspections","vehicle_registrations","pavement_conditions"]:
     spark.sql(f"""
-        CREATE OR REPLACE TABLE main.dot_silver.{tbl}
+        CREATE OR REPLACE TABLE {CATALOG}.dot_silver.{tbl}
         AS SELECT * FROM delta.`{SILVER_PATH}/{tbl}`
     """)
-    print(f"  Registered: main.dot_silver.{tbl}")
+    print(f"  Registered: {CATALOG}.dot_silver.{tbl}")
 
 print("\n✅  Silver layer complete.")

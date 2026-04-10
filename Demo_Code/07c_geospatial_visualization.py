@@ -25,7 +25,18 @@ from pyspark.sql import functions as F
 
 spark = SparkSession.builder.appName("DOT_GeoVisualization").getOrCreate()
 
-BASE_PATH = "/Volumes/main/default/dot_lakehouse"
+# ── Configuration ──
+# When run by a job: parameters arrive via sys.argv
+# When run interactively: dbutils widgets provide defaults
+import sys
+if len(sys.argv) >= 3:
+    BASE_PATH = sys.argv[1]
+    CATALOG   = sys.argv[2]
+else:
+    dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+    dbutils.widgets.text("catalog", "main")
+    BASE_PATH = dbutils.widgets.get("base_path")
+    CATALOG   = dbutils.widgets.get("catalog")
 GEO_PATH  = f"{BASE_PATH}/gold/geospatial"
 EXPORT_PATH = f"{BASE_PATH}/exports/geospatial"
 

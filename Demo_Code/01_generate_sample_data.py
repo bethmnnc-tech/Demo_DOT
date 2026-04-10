@@ -7,6 +7,7 @@
 
 # ── Imports ──────────────────────────────────────────────────────────────────
 import random
+import sys
 import uuid
 from datetime import datetime, timedelta
 
@@ -19,12 +20,24 @@ from pyspark.sql.types import (
 spark = SparkSession.builder.appName("DOT_SampleDataGenerator").getOrCreate()
 
 # ── Configuration ────────────────────────────────────────────────────────────
-BASE_PATH   = "/Volumes/main/default/dot_lakehouse"          # root path on DBFS / Unity Catalog volume
+# When run by a job: parameters arrive via sys.argv
+# When run interactively: dbutils widgets provide a UI with dev defaults
+if len(sys.argv) >= 3:
+    BASE_PATH = sys.argv[1]
+    CATALOG   = sys.argv[2]
+else:
+    dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
+    dbutils.widgets.text("catalog", "main")
+    BASE_PATH = dbutils.widgets.get("base_path")
+    CATALOG   = dbutils.widgets.get("catalog")
+
 NUM_RECORDS = 50_000                         # scale up as needed
 SEED        = 42
 random.seed(SEED)
 
 print(f"Generating {NUM_RECORDS:,} records per domain …")
+print(f"  BASE_PATH = {BASE_PATH}")
+print(f"  CATALOG   = {CATALOG}")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DOMAIN 1 – TRAFFIC INCIDENTS
