@@ -10,9 +10,9 @@ bundle:
   name: dot_transportation_platform
 
 # # ── Permissions ───────────────────────────────────────────────────────────────
-# permissions:
-#   - user_name: beth.ramsey@trace3.com
-#     level: CAN_MANAGE
+permissions:
+  - user_name: beth.ramsey@trace3.com
+    level: CAN_MANAGE
 #   - service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
 #     level: CAN_MANAGE
 
