@@ -1,0 +1,28 @@
+dot_dbt_demo:
+  target: databricks
+  outputs:
+    databricks:
+      type: databricks
+      method: http
+      host: dbc-a5388842-1c80.cloud.databricks.com
+      http_path: "{{ env_var('DBT_DATABRICKS_HTTP_PATH') }}"
+      token: "{{ env_var('DBT_ACCESS_TOKEN', env_var('DATABRICKS_TOKEN')) }}"
+      catalog: main
+      schema: analytics
+      threads: 4
+
+    # The on-prem SQL Server target disabled for demo,
+    # credentials path, and adapter rollout are ready.
+    #
+    # onprem:
+    #   type: sqlserver
+    #   driver: "ODBC Driver 18 for SQL Server"
+    #   server: your-sqlserver-hostname
+    #   port: 1433
+    #   database: DOTWarehouse
+    #   schema: analytics
+    #   user: your_username
+    #   password: "{{ env_var('DBT_SQLSERVER_PASSWORD') }}"
+    #   encrypt: true
+    #   trust_cert: false
+    #   threads: 4

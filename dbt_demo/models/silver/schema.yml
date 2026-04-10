@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: silver_traffic_incidents
+    description: Cleaned and enriched traffic incidents for downstream analytics.
+    columns:
+      - name: incident_id
+        tests:
+          - not_null
+          - unique
+      - name: incident_year
+        tests:
+          - not_null
+      - name: severity_score
+        tests:
+          - not_null
+          - non_negative
+
+  - name: silver_bridge_inspections
+    description: Cleaned and enriched bridge inspection records with risk scoring.
+    columns:
+      - name: bridge_id
+        tests:
+          - not_null
+          - unique
+      - name: risk_score
+        tests:
+          - not_null
+          - non_negative
+      - name: priority_tier
+        tests:
+          - not_null
