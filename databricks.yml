@@ -172,6 +172,7 @@ resources:
         layer: dbt
       tasks:
         - task_key: dbt_build_demo
+          cluster_key: "default"  # ADD THIS LINE
           dbt_task:
             source: WORKSPACE
             warehouse_id: 269f3f8ac232d6f2
