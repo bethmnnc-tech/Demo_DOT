@@ -26,33 +26,28 @@ BASE_PATH = spark.conf.get("base_path", "/Volumes/main/default/dot_lakehouse")
 # ── Bronze: Raw Incident Ingestion ───────────────────────────────────────────
 @dlt.table(
     name="bronze_incident_raw",
-    comment="Raw traffic incident records ingested via Auto Loader",
+    comment="Traffic incident records streamed from bronze Delta tables",
     table_properties={"quality": "bronze", "pipelines.autoOptimize.managed": "true"},
 )
 def bronze_incident_raw():
     return (
         spark.readStream
-        .format("cloudFiles")
-        .option("cloudFiles.format", "json")
-        .option("cloudFiles.schemaLocation", f"{BASE_PATH}/dlt_schema/incidents")
-        .load(f"{BASE_PATH}/landing/incidents/")
+        .format("delta")
+        .load(f"{BASE_PATH}/bronze/traffic_incidents")
         .withColumn("_ingest_time", F.current_timestamp())
-        .withColumn("_source_file", F.col("_metadata.file_path"))
     )
 
 # ── Bronze: Raw Bridge Condition Feed ────────────────────────────────────────
 @dlt.table(
     name="bronze_bridge_raw",
-    comment="Raw NBI bridge inspection records",
+    comment="NBI bridge inspection records streamed from bronze Delta tables",
     table_properties={"quality": "bronze"},
 )
 def bronze_bridge_raw():
     return (
         spark.readStream
-        .format("cloudFiles")
-        .option("cloudFiles.format", "parquet")
-        .option("cloudFiles.schemaLocation", f"{BASE_PATH}/dlt_schema/bridges")
-        .load(f"{BASE_PATH}/landing/bridges/")
+        .format("delta")
+        .load(f"{BASE_PATH}/bronze/bridge_inspections")
         .withColumn("_ingest_time", F.current_timestamp())
     )
 
