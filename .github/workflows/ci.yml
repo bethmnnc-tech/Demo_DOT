@@ -5,11 +5,23 @@
 name: CI — Validate Bundle
 
 on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Validation target"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
+          - both
   pull_request:
     branches: [main]
     paths:
       - "databricks.yml"
       - "Demo_Code/**"
+      - "dbt_demo/**"
       - "dot_app/**"
       - ".github/workflows/**"
 
@@ -29,18 +41,18 @@ jobs:
         uses: databricks/setup-cli@main
 
       - name: Validate bundle (dev)
+        if: github.event.inputs.target != 'prod'
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: |
-          databricks bundle validate --target dev
+        run: databricks bundle validate --target dev
 
       - name: Validate bundle (prod)
+        if: github.event.inputs.target != 'dev'
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: |
-          databricks bundle validate --target prod
+        run: databricks bundle validate --target prod
 
   lint:
     name: Lint Python Notebooks

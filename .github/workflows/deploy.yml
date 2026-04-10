@@ -5,6 +5,16 @@
 name: CD — Deploy Bundle
 
 on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
   push:
     branches: [main]
     paths:
@@ -19,9 +29,10 @@ permissions:
   id-token: write
 
 jobs:
-  deploy-dev:
-    name: Deploy to Development
+  deploy:
+    name: Deploy to ${{ github.event.inputs.target || 'dev' }}
     runs-on: ubuntu-latest
+    environment: ${{ (github.event.inputs.target || 'dev') == 'prod' && 'production' || '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,19 +44,19 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle validate --target dev
+        run: databricks bundle validate --target ${{ github.event.inputs.target || 'dev' }}
 
-      - name: Deploy to dev
+      - name: Deploy bundle
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle deploy --target dev --force
+        run: databricks bundle deploy --target ${{ github.event.inputs.target || 'dev' }} --force
 
-  # ── Uncomment when ready for production deployments ──────────────────────────
+  # ── Uncomment when ready for production deployments with separate job ────────
   # deploy-prod:
   #   name: Deploy to Production
   #   runs-on: ubuntu-latest
-  #   needs: deploy-dev
+  #   needs: deploy
   #   environment: production          # requires GitHub environment approval
   #   steps:
   #     - name: Checkout repository
