@@ -274,12 +274,54 @@ resources:
             client: "1"
             dependencies: []
 
+
+    # ── Job 7: MDOT Camera Data Refresh ──────────────────────────────────────
+    mdot_camera_refresh:
+      name: "[${bundle.target}] MDOT Camera Data Refresh"
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ? *"   # Daily at 6 AM ET
+        timezone_id: America/New_York
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: mdot_cameras
+      tasks:
+        - task_key: refresh_mdot_data
+          notebook_task:
+            notebook_path: ./dot_app/mdot-camera-viewer/refresh_mdot_data.py
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 600
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies: []
+
   # ── Databricks Apps ──────────────────────────────────────────────────────────
   apps:
     ncdot_camera_viewer:
       name: "ncdot-camera-viewer"
       source_code_path: ./dot_app/ncdot-camera-viewer
       description: "Live NCDOT traffic camera viewer and incident map"
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: 269f3f8ac232d6f2
+            permission: CAN_USE
+
+
+    mdot_camera_viewer:
+      name: "mdot-camera-viewer"
+      source_code_path: ./dot_app/mdot-camera-viewer
+      description: "Live Michigan DOT traffic camera viewer"
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: 269f3f8ac232d6f2
+            permission: CAN_USE
       resources:
         - name: sql-warehouse
           sql_warehouse:
