@@ -29,7 +29,7 @@ spark = SparkSession.builder.appName("DOT_GeoVisualization").getOrCreate()
 # When run by a job: parameters arrive via sys.argv
 # When run interactively: dbutils widgets provide defaults
 import sys
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 3 and sys.argv[1].startswith("/"):
     BASE_PATH = sys.argv[1]
     CATALOG   = sys.argv[2]
 else:
@@ -276,7 +276,7 @@ gdf_roads = export_geojson(
 # Intersections as Points
 gdf_int = export_geojson(
     spark.read.format("delta").load(f"{BASE_PATH}/bronze/geospatial/intersections")
-         .select("intersection_id","nearest_city","intersection_type",
+         .select("intersection_id","nearest_city","cross_streets","intersection_type",
                  "crash_count_5yr","fatal_crash_count_5yr","geometry_wkt"),
     "geometry_wkt",
     f"{EXPORT_PATH}/intersections.geojson",
@@ -295,7 +295,7 @@ gdf_taz = export_geojson(
 gdf_wz = export_geojson(
     spark.read.format("delta").load(f"{BASE_PATH}/bronze/geospatial/work_zones")
          .filter(F.col("status") == "Active")
-         .select("work_zone_id","zone_type","status","lanes_closed",
+         .select("work_zone_id","project_name","zone_type","status","lanes_closed",
                  "zone_length_miles","project_cost_usd","geometry_wkt"),
     "geometry_wkt",
     f"{EXPORT_PATH}/active_work_zones.geojson",
