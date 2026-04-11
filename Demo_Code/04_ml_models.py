@@ -45,7 +45,7 @@ import sys
 # ── Configuration ────────────────────────────────────────────────────────────
 # When run by a job: parameters arrive via sys.argv
 # When run interactively: dbutils widgets provide a UI with dev defaults
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 3 and not sys.argv[1].startswith("-"):
     BASE_PATH = sys.argv[1]
     CATALOG   = sys.argv[2]
 else:
@@ -86,13 +86,13 @@ pdf_inc = (
         "vehicles_involved",
         "severity_score",
     )
-    .dropna()
+    .dropna()  
     .withColumn("is_weekend_int", F.col("is_weekend").cast("int"))
     .toPandas()
 )
 
 cat_cols = ["incident_type", "state_code", "road_condition", "weather_condition"]
-num_cols = ["incident_hour", "day_of_week", "vehicles_involved", "severity_score", "is_weekend_int"]
+num_cols = ["incident_hour", "day_of_week", "vehicles_involved", "severity_score", "is_weekend"]
 
 label_enc = LabelEncoder()
 y_inc = label_enc.fit_transform(pdf_inc["severity"])

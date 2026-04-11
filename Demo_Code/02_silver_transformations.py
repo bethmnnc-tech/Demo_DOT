@@ -16,7 +16,7 @@ spark = SparkSession.builder.appName("DOT_SilverTransformations").getOrCreate()
 # ── Configuration ────────────────────────────────────────────────────────────
 # When run by a job: parameters arrive via sys.argv
 # When run interactively: dbutils widgets provide a UI with dev defaults
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 3 and not sys.argv[1].startswith("-"):
     BASE_PATH = sys.argv[1]
     CATALOG   = sys.argv[2]
 else:
@@ -65,6 +65,9 @@ run_dq_checks(df_inc_raw, "traffic_incidents", [
 ])
 
 # ── Transformations ──────────────────────────────────────────────────────────
+# for columns that already exist, the cleaned version will overwrite the version in the
+# dataframe.  For new columns they will be appended.
+# _____________________________________________________________________________
 df_inc_silver = (
     df_inc_raw
     # Standardise strings
@@ -88,7 +91,7 @@ df_inc_silver = (
          .when(F.col("severity") == "Property Damage Only", 2)
          .otherwise(1))
     # Drop duplicates on natural key
-    .dropDuplicates(["incident_id"])
+    .dropDuplicates(["incident_id"], keep='last')
     # Remove records with null critical fields
     .filter(F.col("incident_id").isNotNull())
     .filter(F.col("incident_datetime").isNotNull())

@@ -13,7 +13,7 @@ import sys
 # ── Configuration ────────────────────────────────────────────────────────────
 # When run by a job: parameters arrive via sys.argv
 # When run interactively: dbutils widgets provide a UI with dev defaults
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 3 and not sys.argv[1].startswith("-"):
     BASE_PATH = sys.argv[1]
     CATALOG   = sys.argv[2]
 else:

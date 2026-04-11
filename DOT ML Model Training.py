@@ -1,8 +1,7 @@
 # Databricks notebook source
 dbutils.widgets.text("base_path", "/Volumes/main/default/dot_lakehouse")
 dbutils.widgets.text("catalog", "main")
-BASE_PATH = dbutils.widgets.get("base_path")
-CATALOG   = dbutils.widgets.get("catalog")
+
 
 # COMMAND ----------
 
@@ -40,11 +39,16 @@ from sklearn.model_selection import train_test_split
 
 spark = SparkSession.builder.getOrCreate()
 
-SILVER_PATH = "/Volumes/main/default/dot_lakehouse/silver"
-MODEL_PATH = "/Volumes/main/default/dot_lakehouse/models"
+# Re-read widget values — Python variables are wiped by restartPython() but widget values persist
+BASE_PATH = dbutils.widgets.get("base_path")
+CATALOG   = dbutils.widgets.get("catalog")
+
+SILVER_PATH = f"{BASE_PATH}/silver"
+MODEL_PATH  = f"{BASE_PATH}/models"
 
 mlflow.set_experiment("/DOT_Transportation_ML")
 print(f"sklearn: {__import__('sklearn').__version__}, numpy: {np.__version__}, mlflow: {mlflow.__version__}")
+print(f"BASE_PATH = {BASE_PATH}, CATALOG = {CATALOG}")
 
 # COMMAND ----------
 
@@ -74,9 +78,9 @@ def rand_date(start_year=2019, end_year=2024):
 
 pavements = []
 for i in range(20_000):
-    insp_date = rand_date()
-    year_constructed = random.randint(1960, 2023)
-    pavement_age = 2024 - year_constructed
+    insp_date = rand_date(2019, datetime.now().year)
+    year_constructed = random.randint(1960, datetime.now().year)
+    pavement_age = datetime.now().year - year_constructed
     state = random.choice(states)
     pav_type = random.choice(pavement_types)
     func_class = random.choice(functional_classes)
