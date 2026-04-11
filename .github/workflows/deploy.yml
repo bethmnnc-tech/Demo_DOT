@@ -1,81 +1,90 @@
-# =============================================================================
-# CD Pipeline — Deploy Databricks Asset Bundle on merge to main / prod
-# Dev deploys on push to main; Prod deploys on push to prod branch only
-# =============================================================================
-name: CD — Deploy Bundle
+name: 'DOT Bundle Deploy'
+
+concurrency: 1
 
 on:
-  workflow_dispatch:
-    inputs:
-      target:
-        description: "Deployment target"
-        required: true
-        default: "dev"
-        type: choice
-        options:
-          - dev
-          - prod
   push:
-    branches: [main, prod]
-    paths:
-      - "databricks.yml"
-      - "Demo_Code/**"
-      - "dbt_demo/**"
-      - "dot_app/**"
-      - ".github/workflows/**"
-
-permissions:
-  contents: read
-  id-token: write
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize]
+    branches:
+      - main
 
 jobs:
   deploy-dev:
-    name: Deploy to Development
-    if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'dev')
+    name: 'Deploy to Dev'
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@main
+      - uses: databricks/setup-cli@main
 
-      - name: Validate bundle (dev)
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: Validate bundle
         run: databricks bundle validate --target dev
-
-      - name: Deploy to dev
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle deploy --target dev --force
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Adopt existing apps into bundle state
+        run: |
+          # Bind pre-existing apps so Terraform manages them
+          # instead of trying to create duplicates.
+          # Safe to re-run: silently succeeds if already bound.
+          apps=("ncdot_camera_viewer:ncdot-camera-viewer"
+                "dot_geospatial_app:dot-geospatial-app"
+                "dot_ml_app:dot-ml-app")
+          for entry in "${apps[@]}"; do
+            key="${entry%%:*}"
+            name="${entry##*:}"
+            echo "Binding $key -> $name"
+            databricks bundle deployment bind "$key" "$name" \
+              --target dev --auto-approve 2>/dev/null || true
+          done
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Deploy bundle
+        run: databricks bundle deploy --target dev
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
 
   deploy-prod:
-    name: Deploy to Production
-    if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/prod') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod')
+    name: 'Deploy to Prod'
     runs-on: ubuntu-latest
-    environment: production
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Install Databricks CLI
-        uses: databricks/setup-cli@main
+      - uses: databricks/setup-cli@main
 
-      - name: Validate bundle (prod)
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: Validate bundle
         run: databricks bundle validate --target prod
-
-      - name: Deploy to prod
         env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-        run: databricks bundle deploy --target prod --force
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Adopt existing apps into bundle state
+        run: |
+          apps=("ncdot_camera_viewer:ncdot-camera-viewer"
+                "dot_geospatial_app:dot-geospatial-app"
+                "dot_ml_app:dot-ml-app")
+          for entry in "${apps[@]}"; do
+            key="${entry%%:*}"
+            name="${entry##*:}"
+            echo "Binding $key -> $name"
+            databricks bundle deployment bind "$key" "$name" \
+              --target prod --auto-approve 2>/dev/null || true
+          done
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Deploy bundle
+        run: databricks bundle deploy --target prod
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
