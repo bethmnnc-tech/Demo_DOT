@@ -49,9 +49,90 @@ road_conditions  = ["Dry","Wet","Snow/Ice","Fog","Construction","Flooded"]
 states           = ["NC","VA","SC","TN","GA","FL","TX","CA","NY","IL"]
 weather_types    = ["Clear","Rain","Snow","Fog","Wind","Hail"]
 
+# ── NC boundary polygon for point-in-polygon check ──────────────────────────
+_NC_POLY = [
+    (-84.322,35.216),(-84.29,35.226),(-84.09,35.247),(-83.873,35.243),
+    (-83.671,35.278),(-83.499,35.564),(-83.253,35.672),(-82.994,35.773),
+    (-82.775,35.998),(-82.595,36.062),(-82.409,36.084),(-82.032,36.12),
+    (-81.909,36.304),(-81.723,36.354),(-81.677,36.589),(-80.838,36.562),
+    (-80.613,36.557),(-80.295,36.544),(-79.892,36.541),(-79.511,36.541),
+    (-78.91,36.541),(-78.324,36.544),(-77.768,36.544),(-77.176,36.547),
+    (-76.562,36.55),(-76.033,36.55),(-75.868,36.551),(-75.867,36.008),
+    (-75.745,35.868),(-75.641,35.559),(-75.484,35.261),(-75.528,35.186),
+    (-75.722,35.065),(-75.94,34.807),(-76.06,34.654),(-76.471,34.541),
+    (-76.683,34.558),(-76.944,34.499),(-77.21,34.601),(-77.518,34.439),
+    (-77.751,34.285),(-77.872,34.14),(-77.923,33.939),(-78.01,33.858),
+    (-78.554,33.861),(-79.072,34.3),(-79.458,34.631),(-79.667,34.801),
+    (-79.928,34.808),(-80.321,34.814),(-80.561,34.817),(-80.797,34.82),
+    (-80.782,34.936),(-80.935,35.108),(-81.044,35.149),(-81.043,35.265),
+    (-81.058,35.363),(-82.354,35.199),(-82.897,35.058),(-83.109,35.001),
+    (-83.618,34.987),(-84.322,35.216),
+]
+
+def _point_in_nc(lat, lon):
+    """Ray-casting point-in-polygon test."""
+    x, y = lon, lat
+    n = len(_NC_POLY)
+    inside = False
+    j = n - 1
+    for i in range(n):
+        xi, yi = _NC_POLY[i]
+        xj, yj = _NC_POLY[j]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+# ── City/highway cluster definitions ────────────────────────────────────────
+# (name, lat, lon, weight, spread_deg) — weight controls % of points
+_NC_CLUSTERS = [
+    # Major metros (60% of incidents)
+    ("Charlotte",       35.227, -80.843, 0.18, 0.25),
+    ("Raleigh",         35.780, -78.640, 0.14, 0.20),
+    ("Greensboro",      36.073, -79.792, 0.08, 0.15),
+    ("Durham",          35.994, -78.899, 0.06, 0.12),
+    ("Winston-Salem",   36.100, -80.244, 0.05, 0.12),
+    ("Fayetteville",    35.053, -78.878, 0.05, 0.15),
+    ("Wilmington",      34.226, -77.945, 0.04, 0.15),
+    # Mid-size cities (15%)
+    ("Asheville",       35.595, -82.551, 0.04, 0.18),
+    ("Gastonia",        35.262, -81.187, 0.02, 0.10),
+    ("Jacksonville",    34.754, -77.430, 0.02, 0.10),
+    ("Greenville",      35.613, -77.366, 0.02, 0.12),
+    ("Hickory",         35.733, -81.341, 0.01, 0.10),
+    # Highway corridors (25%)
+    ("I-40 Piedmont",   35.85,  -79.20,  0.07, 0.40),   # long E-W spread
+    ("I-85 Corridor",   35.55,  -80.20,  0.06, 0.35),
+    ("I-95 Eastern",    35.30,  -77.90,  0.05, 0.50),
+    ("US-74 Southern",  35.10,  -79.50,  0.04, 0.45),
+    ("I-77 North",      35.60,  -80.85,  0.03, 0.25),
+    ("I-26 Mountains",  35.40,  -82.50,  0.04, 0.30),
+]
+
+# Precompute cumulative weights
+_cum_weights = []
+_cum = 0.0
+for c in _NC_CLUSTERS:
+    _cum += c[3]
+    _cum_weights.append(_cum)
+
 def rand_coord_nc():
-    """Return a lat/lon roughly within North Carolina."""
-    return round(random.uniform(33.8, 36.6), 6), round(random.uniform(-84.3, -75.4), 6)
+    """Return a lat/lon clustered around NC cities/highways, guaranteed inside NC."""
+    for _ in range(50):  # retry until inside NC
+        # Pick a cluster by weight
+        r = random.random() * _cum_weights[-1]
+        idx = 0
+        for i, cw in enumerate(_cum_weights):
+            if r <= cw:
+                idx = i
+                break
+        name, clat, clon, w, spread = _NC_CLUSTERS[idx]
+        lat = round(random.gauss(clat, spread * 0.4), 6)
+        lon = round(random.gauss(clon, spread * 0.6), 6)
+        if _point_in_nc(lat, lon):
+            return lat, lon
+    # Fallback: Charlotte center
+    return 35.227, -80.843
 
 def rand_date(start_year=2020, end_year=2024):
     start = datetime(start_year, 1, 1)
@@ -69,8 +150,12 @@ for _ in range(NUM_RECORDS):
         random.choice(incident_types),              # incident_type
         random.choice(severity_levels),             # severity
         dt,                                         # incident_datetime
-        random.choice(states),                      # state_code
-        f"COUNTY_{random.randint(1,100):03d}",      # county_code
+        "NC",                                       # state_code (all incidents at NC coords)
+        random.choice(["Mecklenburg","Wake","Guilford","Durham","Forsyth","Cumberland",
+                       "Buncombe","New Hanover","Gaston","Onslow","Pitt","Catawba",
+                       "Cabarrus","Union","Johnston","Randolph","Davidson","Rowan",
+                       "Iredell","Alamance","Robeson","Wayne","Harnett","Craven",
+                       "Moore","Lee","Dare","Brunswick","Henderson","Surry"]),
         f"ROUTE_{random.randint(1,500)}",           # route_id
         float(round(random.uniform(0, 100), 2)),    # milepost
         lat, lon,                                   # latitude, longitude
