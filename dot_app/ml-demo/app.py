@@ -1,5 +1,6 @@
 import os
 import mlflow
+mlflow.set_tracking_uri("databricks")
 import pandas as pd
 import streamlit as st
 from databricks.sdk import WorkspaceClient
@@ -18,6 +19,12 @@ UC_MODELS = {
     "incident_severity_gbt": "models:/main.default.dot_incident_severity/4",
     "bridge_risk_score_gbt": "models:/main.default.dot_bridge_risk/4",
     "pavement_deterioration_rf": "models:/main.default.dot_pavement_deterioration/4",
+}
+
+MODEL_DISPLAY_NAMES = {
+    "incident_severity_gbt": "Incident Severity",
+    "bridge_risk_score_gbt": "Bridge Risk Score",
+    "pavement_deterioration_rf": "Pavement Deterioration",
 }
 
 # ── SQL schema context for the chatbot ───────────────────────────────────────
@@ -173,6 +180,19 @@ def extract_sql(text: str):
     return None
 
 
+@st.cache_data(ttl=300)
+def load_experiment_runs():
+    """Fetch all MLflow runs for the DOT experiment, cached for 5 minutes."""
+    try:
+        runs = mlflow.search_runs(
+            experiment_ids=[EXPERIMENT_ID],
+            order_by=["start_time DESC"],
+        )
+        return runs
+    except Exception:
+        return pd.DataFrame()
+
+
 # ── Load models ──────────────────────────────────────────────────────────────
 models = load_models()
 
@@ -193,11 +213,12 @@ with st.sidebar:
         st.info("Experiment metrics unavailable. Models loaded from Unity Catalog.")
 
 # ── Tabs ─────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "🤖 Data Assistant",
     "⚡ Incident Severity",
     "🌉 Bridge Risk Score",
     "🛣️ Pavement Deterioration",
+    "📊 Experiment Tracking",
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -475,3 +496,211 @@ with tab4:
                     st.success("Low risk - Condition expected to hold")
 
             st.progress(min(proba[1], 1.0), text=f"Risk: {proba[1]:.1%}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tab 5: MLflow Experiment Tracking
+# ══════════════════════════════════════════════════════════════════════════════
+with tab5:
+    st.header("MLflow Experiment Tracking")
+    st.write("Compare model training runs, metrics, and parameters from the DOT Transportation ML experiment.")
+
+    all_runs = load_experiment_runs()
+
+    if all_runs.empty:
+        st.warning("No experiment runs found. Run the ML training pipeline to generate data.")
+    else:
+        # ── Latest run per model ─────────────────────────────────────────────
+        st.subheader("Latest Run per Model")
+
+        # Get the most recent run for each model type
+        all_runs["run_name"] = all_runs.get("tags.mlflow.runName", "unknown")
+        latest_runs = all_runs.drop_duplicates(subset=["run_name"], keep="first")
+
+        # Build comparison table
+        comparison_rows = []
+        for _, run in latest_runs.iterrows():
+            name = run["run_name"]
+            row = {"Model": name, "Status": run.get("status", ""), "Duration (s)": ""}
+
+            # Calculate duration
+            if pd.notna(run.get("start_time")) and pd.notna(run.get("end_time")):
+                duration = (run["end_time"] - run["start_time"]).total_seconds()
+                row["Duration (s)"] = f"{duration:.0f}"
+
+            # Add all metrics
+            for col in run.index:
+                if col.startswith("metrics.") and pd.notna(run[col]):
+                    metric_name = col.replace("metrics.", "")
+                    row[metric_name] = round(run[col], 4)
+
+            # Add key params
+            for col in run.index:
+                if col.startswith("params.") and pd.notna(run[col]):
+                    param_name = col.replace("params.", "")
+                    row[param_name] = run[col]
+
+            comparison_rows.append(row)
+
+        if comparison_rows:
+            df_compare = pd.DataFrame(comparison_rows)
+            st.dataframe(df_compare, use_container_width=True, hide_index=True)
+
+        # ── Metric comparison chart ──────────────────────────────────────────
+        st.subheader("Metric Comparison")
+
+        # Collect all metric columns
+        metric_cols = [c for c in all_runs.columns if c.startswith("metrics.")]
+        metric_names = [c.replace("metrics.", "") for c in metric_cols]
+
+        if metric_names:
+            selected_metric = st.selectbox(
+                "Select metric to compare",
+                metric_names,
+                key="exp_metric_select"
+            )
+            metric_col = f"metrics.{selected_metric}"
+
+            # Filter runs that have this metric
+            runs_with_metric = all_runs[all_runs[metric_col].notna()].copy()
+
+            if not runs_with_metric.empty:
+                chart_data = runs_with_metric[["run_name", metric_col]].copy()
+                chart_data.columns = ["Model", selected_metric]
+                chart_data = chart_data.set_index("Model")
+                st.bar_chart(chart_data)
+
+        # ── Metric trends over training runs ─────────────────────────────────
+        st.subheader("Metric Trends Over Training Runs")
+        st.write("Track how each model's metrics evolve across successive training runs.")
+
+        # Group runs by model name and plot metrics over time
+        model_names = sorted(all_runs["run_name"].unique())
+
+        # Let user pick which model to view trends for
+        trend_model = st.selectbox(
+            "Select model",
+            model_names,
+            key="trend_model_select",
+        )
+
+        # Filter to that model's runs, sorted chronologically
+        model_runs = all_runs[all_runs["run_name"] == trend_model].copy()
+        model_runs = model_runs.sort_values("start_time", ascending=True).reset_index(drop=True)
+
+        if len(model_runs) < 2:
+            st.info(f"Only {len(model_runs)} run found for **{trend_model}**. Trend charts require 2+ runs.")
+        else:
+            # Find metrics available for this model
+            model_metric_cols = [
+                c for c in model_runs.columns
+                if c.startswith("metrics.") and model_runs[c].notna().any()
+            ]
+
+            if model_metric_cols:
+                # Build trend dataframe: run number as index, one column per metric
+                trend_df = pd.DataFrame()
+                trend_df["Run"] = [
+                    f"#{i+1} ({row['start_time'].strftime('%m/%d %H:%M')})"
+                    if pd.notna(row.get("start_time")) else f"#{i+1}"
+                    for i, (_, row) in enumerate(model_runs.iterrows())
+                ]
+
+                for mc in model_metric_cols:
+                    clean_name = mc.replace("metrics.", "")
+                    trend_df[clean_name] = model_runs[mc].values
+
+                trend_df = trend_df.set_index("Run")
+
+                # Let user pick which metrics to plot
+                available_metrics = list(trend_df.columns)
+                selected_trends = st.multiselect(
+                    "Select metrics to plot",
+                    available_metrics,
+                    default=available_metrics[:3],
+                    key="trend_metric_multi",
+                )
+
+                if selected_trends:
+                    st.line_chart(trend_df[selected_trends])
+
+                    # Show delta between first and last run
+                    st.write("**Change from first to latest run:**")
+                    delta_cols = st.columns(min(len(selected_trends), 4))
+                    for i, metric in enumerate(selected_trends):
+                        col_idx = i % len(delta_cols)
+                        first_val = trend_df[metric].iloc[0]
+                        last_val = trend_df[metric].iloc[-1]
+                        if pd.notna(first_val) and pd.notna(last_val):
+                            delta = last_val - first_val
+                            delta_pct = (delta / first_val * 100) if first_val != 0 else 0
+                            with delta_cols[col_idx]:
+                                st.metric(
+                                    metric,
+                                    f"{last_val:.4f}",
+                                    delta=f"{delta:+.4f} ({delta_pct:+.1f}%)",
+                                )
+            else:
+                st.info(f"No metrics logged for **{trend_model}**.")
+
+        # ── Run history timeline ─────────────────────────────────────────────
+        st.subheader("Run History")
+
+        # Show all runs sorted by time
+        history_cols = ["run_name", "status", "start_time"]
+        history_cols += [c for c in metric_cols if all_runs[c].notna().any()]
+        param_cols = [c for c in all_runs.columns if c.startswith("params.") and all_runs[c].notna().any()]
+        history_cols += param_cols
+
+        available_cols = [c for c in history_cols if c in all_runs.columns]
+        df_history = all_runs[available_cols].copy()
+
+        # Clean column names for display
+        df_history.columns = [
+            c.replace("metrics.", "").replace("params.", "").replace("tags.mlflow.", "")
+            for c in df_history.columns
+        ]
+
+        st.dataframe(df_history, use_container_width=True, hide_index=True)
+
+        # ── Registered model versions ────────────────────────────────────────
+        st.subheader("Registered Model Versions")
+
+        uc_model_names = [
+            "main.default.dot_incident_severity",
+            "main.default.dot_bridge_risk",
+            "main.default.dot_pavement_deterioration",
+        ]
+
+        try:
+            w = get_workspace_client()
+            for model_name in uc_model_names:
+                with st.expander(f"📦 {model_name}", expanded=False):
+                    try:
+                        from mlflow import MlflowClient
+                        client = MlflowClient(registry_uri="databricks-uc")
+                        versions = client.search_model_versions(f"name='{model_name}'")
+                        if versions:
+                            version_rows = []
+                            for v in versions:
+                                version_rows.append({
+                                    "Version": v.version,
+                                    "Status": v.status,
+                                    "Created": str(v.creation_timestamp),
+                                    "Run ID": v.run_id or "",
+                                })
+                            st.dataframe(
+                                pd.DataFrame(version_rows),
+                                use_container_width=True,
+                                hide_index=True,
+                            )
+                        else:
+                            st.info("No versions found.")
+                    except Exception as e:
+                        st.info(f"Could not fetch versions: {e}")
+        except Exception:
+            st.info("Model version details unavailable.")
+
+        # ── Refresh button ───────────────────────────────────────────────────
+        if st.button("🔄 Refresh experiment data", key="refresh_exp"):
+            st.cache_data.clear()
+            st.rerun()
