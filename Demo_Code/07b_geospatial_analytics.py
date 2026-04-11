@@ -15,6 +15,8 @@ import subprocess
 subprocess.check_call(["pip", "install", "-q", "h3", "shapely"])
 
 import math
+import h3
+import pandas as pd
 import numpy as np
 from typing import List
 
@@ -27,7 +29,7 @@ import sys
 # ── Configuration ────────────────────────────────────────────────────────────
 # When run by a job: parameters arrive via sys.argv
 # When run interactively: dbutils widgets provide a UI with dev defaults
-if len(sys.argv) >= 3:
+if len(sys.argv) >= 3 and sys.argv[1].startswith("/"):
     BASE_PATH = sys.argv[1]
     CATALOG   = sys.argv[2]
 else:
@@ -48,67 +50,54 @@ GOLD_PATH  = f"{BASE_PATH}/gold/geospatial"
 spark.sql(f"CREATE DATABASE IF NOT EXISTS {CATALOG}.dot_geo")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# UDFs – H3 spatial indexing
+# Driver-side H3 helpers
+# On serverless (Spark Connect), h3 is only available on the driver — not
+# inside UDFs which execute on the server.  We collect lat/lon to pandas,
+# compute H3 indices on the driver, then join the result back to Spark.
 # ─────────────────────────────────────────────────────────────────────────────
 
-@F.udf(StringType())
-def udf_h3_r8(lat, lon):
-    """Assign H3 cell at resolution 8 (~0.7 km² avg area)."""
-    if lat is None or lon is None:
-        return None
-    try:
-        return h3.latlng_to_cell(float(lat), float(lon), 8)
-    except Exception:
-        return None
+def _add_h3_columns(df_spark, id_col, lat_col="latitude", lon_col="longitude",
+                    resolutions=None):
+    """Compute H3 indices on the driver and join back as new columns."""
+    if resolutions is None:
+        resolutions = [6, 7, 8]
+    pdf = df_spark.select(id_col, lat_col, lon_col).toPandas()
+    for res in resolutions:
+        col_name = f"h3_index_r{res}"
+        pdf[col_name] = pdf.apply(
+            lambda r, _r=res: h3.latlng_to_cell(float(r[lat_col]), float(r[lon_col]), _r)
+            if pd.notna(r[lat_col]) and pd.notna(r[lon_col]) else None,
+            axis=1,
+        )
+    h3_cols = [id_col] + [f"h3_index_r{r}" for r in resolutions]
+    df_h3 = spark.createDataFrame(pdf[h3_cols])
+    return df_spark.join(df_h3, on=id_col, how="left")
 
-@F.udf(StringType())
-def udf_h3_r6(lat, lon):
-    """Assign H3 cell at resolution 6 (~36 km² avg area — county-ish)."""
-    if lat is None or lon is None:
-        return None
-    try:
-        return h3.latlng_to_cell(float(lat), float(lon), 6)
-    except Exception:
-        return None
 
-@F.udf(StringType())
-def udf_h3_r7(lat, lon):
-    """Assign H3 cell at resolution 7 (~5 km² avg area — sub-district)."""
-    if lat is None or lon is None:
-        return None
-    try:
-        return h3.latlng_to_cell(float(lat), float(lon), 7)
-    except Exception:
-        return None
+def _add_h3_disk(df_spark, id_col, lat_col="latitude", lon_col="longitude",
+                 k_rings=2, resolution=8):
+    """Compute H3 k-ring disk on driver, return (id, h3_neighbor) rows."""
+    pdf = df_spark.select(id_col, lat_col, lon_col).toPandas()
+    rows = []
+    for _, r in pdf.iterrows():
+        if pd.notna(r[lat_col]) and pd.notna(r[lon_col]):
+            center = h3.latlng_to_cell(float(r[lat_col]), float(r[lon_col]), resolution)
+            for cell in h3.grid_disk(center, k_rings):
+                rows.append((r[id_col], cell))
+    return spark.createDataFrame(rows, [id_col, "h3_neighbor"])
 
-@F.udf(DoubleType())
-def udf_haversine(lat1, lon1, lat2, lon2):
-    """Haversine distance in miles between two lat/lon pairs."""
-    if any(v is None for v in [lat1, lon1, lat2, lon2]):
-        return None
-    R = 3958.8
-    phi1, phi2 = math.radians(float(lat1)), math.radians(float(lat2))
-    dphi = math.radians(float(lat2) - float(lat1))
-    dlam = math.radians(float(lon2) - float(lon1))
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlam/2)**2
-    return round(R * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a)), 4)
 
-@F.udf(ArrayType(StringType()))
-def udf_h3_disk(lat, lon, k_rings=2):
-    """Return the H3 cells within k rings of a point (for proximity lookups)."""
-    if lat is None or lon is None:
-        return []
-    try:
-        center = h3.latlng_to_cell(float(lat), float(lon), 8)
-        return list(h3.grid_disk(center, k_rings))
-    except Exception:
-        return []
+def _haversine_expr(lat1, lon1, lat2, lon2):
+    """Spark-native haversine distance in miles (no UDF)."""
+    R = F.lit(3958.8)
+    phi1 = F.radians(lat1)
+    phi2 = F.radians(lat2)
+    dphi = F.radians(lat2 - lat1)
+    dlam = F.radians(lon2 - lon1)
+    a = (F.sin(dphi / 2) ** 2 +
+         F.cos(phi1) * F.cos(phi2) * F.sin(dlam / 2) ** 2)
+    return F.round(R * F.lit(2) * F.atan2(F.sqrt(a), F.sqrt(F.lit(1) - a)), 4)
 
-@F.udf(StringType())
-def udf_point_wkt(lat, lon):
-    if lat is None or lon is None:
-        return None
-    return f"POINT ({lon} {lat})"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STEP 1 – Enrich Silver Incidents with Geospatial Attributes
@@ -118,12 +107,13 @@ print("Step 1: Enriching incidents with H3 + geometry …")
 df_inc = spark.read.format("delta").load(f"{SILVER_PATH}/traffic_incidents")
 df_roads = spark.read.format("delta").load(f"{GEO_PATH}/road_segments")
 
+# Compute H3 on driver, join back
+df_inc_h3 = _add_h3_columns(df_inc, "incident_id", resolutions=[6, 7, 8])
+
 df_inc_geo = (
-    df_inc
-    .withColumn("h3_index_r8", udf_h3_r8(F.col("latitude"), F.col("longitude")))
-    .withColumn("h3_index_r6", udf_h3_r6(F.col("latitude"), F.col("longitude")))
-    .withColumn("h3_index_r7", udf_h3_r7(F.col("latitude"), F.col("longitude")))
-    .withColumn("geometry_wkt", udf_point_wkt(F.col("latitude"), F.col("longitude")))
+    df_inc_h3
+    .withColumn("geometry_wkt",
+        F.concat(F.lit("POINT ("), F.col("longitude"), F.lit(" "), F.col("latitude"), F.lit(")")))
     # Cardinal direction from Charlotte (reference point)
     .withColumn("bearing_from_charlotte",
         F.degrees(F.atan2(
@@ -131,15 +121,15 @@ df_inc_geo = (
             F.col("latitude")  - F.lit(35.2271)
         ))
     )
-    # Urban/rural proxy: within 30 miles of a major city
+    # Urban/rural proxy: within 30 miles of a major city (Spark-native haversine)
     .withColumn("urban_proximity_score",
         F.least(
-            udf_haversine(F.col("latitude"), F.col("longitude"),
-                          F.lit(35.2271), F.lit(-80.8431)),   # Charlotte
-            udf_haversine(F.col("latitude"), F.col("longitude"),
-                          F.lit(35.7796), F.lit(-78.6382)),   # Raleigh
-            udf_haversine(F.col("latitude"), F.col("longitude"),
-                          F.lit(36.0726), F.lit(-79.7920)),   # Greensboro
+            _haversine_expr(F.col("latitude"), F.col("longitude"),
+                            F.lit(35.2271), F.lit(-80.8431)),   # Charlotte
+            _haversine_expr(F.col("latitude"), F.col("longitude"),
+                            F.lit(35.7796), F.lit(-78.6382)),   # Raleigh
+            _haversine_expr(F.col("latitude"), F.col("longitude"),
+                            F.lit(36.0726), F.lit(-79.7920)),   # Greensboro
         )
     )
     .withColumn("area_type",
@@ -216,13 +206,12 @@ print(f"  ✓ h3_incident_density → {df_h3_grid.count():,} H3 cells")
 # ─────────────────────────────────────────────────────────────────────────────
 print("\nStep 3: Corridor spatial join (H3 proximity) …")
 
-# Explode k-ring neighbors for proximity matching
+# Compute k-ring neighbors on driver (h3 not available in serverless UDFs)
+df_inc_disk = _add_h3_disk(df_inc_geo, "incident_id")
 df_inc_kring = (
-    df_inc_geo
-    .withColumn("nearby_h3_cells", udf_h3_disk(F.col("latitude"), F.col("longitude")))
-    .withColumn("h3_neighbor", F.explode("nearby_h3_cells"))
-    .select("incident_id","route_id","h3_neighbor","severity_score",
-            "fatalities","injuries","incident_type","has_fatality")
+    df_inc_geo.select("incident_id","route_id","severity_score",
+                      "fatalities","injuries","incident_type","has_fatality")
+    .join(df_inc_disk, on="incident_id", how="inner")
 )
 
 # Road segments with their H3 index
@@ -292,7 +281,6 @@ df_hotspots = (
          .when(F.col("z_score") >= 1.5, "Hot Spot 90% Confidence")
          .when(F.col("z_score") <= -1.5,"Cold Spot (low activity)")
          .otherwise("Not Significant"))
-    # Gi* statistic approximation using ring neighbors (spatial lag)
     .withColumn("gold_timestamp", F.current_timestamp())
 )
 
@@ -314,37 +302,60 @@ print(f"  ✓ incident_hotspots → {df_hotspots.count():,} cells | {hotspot_cou
 # ─────────────────────────────────────────────────────────────────────────────
 print("\nStep 5: Bridge–TAZ overlay …")
 
-df_brg = (
-    spark.read.format("delta").load(f"{SILVER_PATH}/bridge_inspections")
-    .withColumn("h3_index_r7", udf_h3_r7(F.col("latitude"), F.col("longitude")))
-    .withColumn("geometry_wkt", udf_point_wkt(F.col("latitude"), F.col("longitude")))
-)
+# The new 07a writes verified_bridges with pre-computed H3 columns.
+# Fall back to Silver + driver-side H3 if that table doesn't exist.
+try:
+    df_brg = spark.read.format("delta").load(f"{GEO_PATH}/verified_bridges")
+    print("  Using verified_bridges from 07a geo bronze layer")
+except Exception:
+    df_brg_raw = spark.read.format("delta").load(f"{SILVER_PATH}/bridge_inspections")
+    df_brg = _add_h3_columns(df_brg_raw, "bridge_id", resolutions=[7])
+    df_brg = df_brg.withColumn("geometry_wkt",
+        F.concat(F.lit("POINT ("), F.col("longitude"), F.lit(" "), F.col("latitude"), F.lit(")")))
+    print("  Using bridge_inspections from Silver layer (07a geo table not found)")
+
+# Ensure h3_index_r7 and geometry_wkt exist regardless of source
+if "h3_index_r7" not in df_brg.columns:
+    df_brg_tmp = _add_h3_columns(df_brg, "bridge_id", resolutions=[7])
+    df_brg = df_brg_tmp
+if "geometry_wkt" not in df_brg.columns:
+    df_brg = df_brg.withColumn("geometry_wkt",
+        F.concat(F.lit("POINT ("), F.col("longitude"), F.lit(" "), F.col("latitude"), F.lit(")")))
 
 df_taz = spark.read.format("delta").load(f"{GEO_PATH}/traffic_analysis_zones")
 
-df_taz_renamed = (
-    df_taz.select("taz_id","h3_index_r7","zone_type","population","employment","vehicle_trips_daily")
+# New 07a writes `county` (was `county_code`) — handle both for backwards compat
+taz_county_col = "county" if "county" in df_taz.columns else "county_code"
+
+df_taz_sel = (
+    df_taz.select("taz_id","h3_index_r7","zone_type","population",
+                  "employment","vehicle_trips_daily")
           .withColumnRenamed("h3_index_r7","taz_h3")
 )
 
 df_brg_taz = (
     df_brg
     .join(
-        df_taz_renamed,
-        df_brg["h3_index_r7"] == df_taz_renamed["taz_h3"],
+        df_taz_sel,
+        df_brg["h3_index_r7"] == df_taz_sel["taz_h3"],
         "left"
     )
     .select(
-        "bridge_id","state_code","bridge_type","age_category","worst_condition",
-        "risk_score","priority_tier","sufficiency_rating","avg_daily_traffic",
+        "bridge_id","state_code","bridge_type",
+        F.col("age_category")    if "age_category"    in df_brg.columns else F.lit(None).alias("age_category"),
+        F.col("worst_condition") if "worst_condition" in df_brg.columns else F.lit(None).alias("worst_condition"),
+        F.col("risk_score")      if "risk_score"      in df_brg.columns else F.lit(0.0).alias("risk_score"),
+        F.col("priority_tier")   if "priority_tier"   in df_brg.columns else F.lit(None).alias("priority_tier"),
+        "sufficiency_rating",
+        F.col("avg_daily_traffic") if "avg_daily_traffic" in df_brg.columns
+            else F.col("aadt").alias("avg_daily_traffic"),
         "latitude","longitude","geometry_wkt","h3_index_r7",
         "taz_id","zone_type",
         F.col("population").alias("taz_population"),
         F.col("employment").alias("taz_employment"),
         F.col("vehicle_trips_daily").alias("taz_vehicle_trips"),
-        # Population at risk (weighted by bridge ADT and risk score)
         F.round(
-            F.col("population") * (F.col("risk_score") / F.lit(100)), 0
+            F.col("taz_population") * (F.col("risk_score") / F.lit(100)), 0
         ).alias("population_at_risk_score"),
     )
     .withColumn("gold_timestamp", F.current_timestamp())
@@ -370,7 +381,8 @@ print("\nStep 6: Work zone conflict analysis …")
 df_wz = (
     spark.read.format("delta").load(f"{GEO_PATH}/work_zones")
     .filter(F.col("status") == "Active")
-    .select("work_zone_id","route_id","h3_index_r8","zone_type","start_date","end_date","speed_limit_in_zone")
+    .select("work_zone_id","route_id","h3_index_r8",
+            "zone_type","start_date","end_date","speed_limit_in_zone")
 )
 
 df_wz_renamed = (

@@ -1,9 +1,13 @@
 -- =============================================================================
 -- NOTEBOOK 7d: DOT Geospatial SQL Queries
--- Databricks SQL Notebook | Uses dot_geo database
+-- Databricks SQL Notebook | Uses ${catalog}.dot_geo database
 -- Description: Spatial analytics queries using H3 functions and WKT geometry.
 --              Databricks supports ST_* functions natively via Photon engine.
 -- =============================================================================
+
+-- Widget for catalog selection (dev=main, prod=main_prod)
+CREATE WIDGET TEXT catalog DEFAULT "main";
+CREATE WIDGET TEXT base_path DEFAULT "/Volumes/main/default/dot_lakehouse";
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Q1: Incident Hotspot Summary – Top H3 Cells by Fatality Concentration
@@ -22,7 +26,7 @@ SELECT
     ROUND(h.z_score, 2)                     AS hotspot_z_score,
     h.hotspot_class,
     h.risk_tier
-FROM dot_geo.incident_hotspots h
+FROM ${catalog}.dot_geo.incident_hotspots h
 WHERE h.is_hotspot = TRUE
 ORDER BY h.total_fatalities DESC, h.incident_count DESC
 LIMIT 50;
@@ -46,7 +50,7 @@ SELECT
         PARTITION BY c.functional_class
         ORDER BY c.incidents_per_100m_vmt DESC
     )                                                 AS safety_rank_in_class
-FROM dot_geo.corridor_safety_rates c
+FROM ${catalog}.dot_geo.corridor_safety_rates c
 ORDER BY c.incidents_per_100m_vmt DESC
 LIMIT 30;
 
@@ -69,7 +73,7 @@ SELECT
     SUM(b.avg_daily_traffic)                          AS total_bridge_aadt,
     COLLECT_LIST(CASE WHEN b.priority_tier = 'Priority 1 – Immediate' THEN b.bridge_id END)
                                                       AS p1_bridge_ids
-FROM dot_geo.bridges_with_taz b
+FROM ${catalog}.dot_geo.bridges_with_taz b
 GROUP BY 1,2,3
 HAVING COUNT(b.bridge_id) >= 2
 ORDER BY total_pop_at_risk_score DESC
@@ -93,7 +97,7 @@ SELECT
     ROUND(AVG(avg_severity_score), 2)                 AS avg_severity,
     SUM(CASE WHEN risk_tier LIKE '%Critical%' OR risk_tier LIKE '%High%' THEN 1 ELSE 0 END)
                                                       AS high_risk_sub_cells
-FROM dot_geo.h3_incident_density
+FROM ${catalog}.dot_geo.h3_incident_density
 GROUP BY 1,2
 ORDER BY total_fatalities DESC;
 
@@ -115,7 +119,7 @@ SELECT
         WHEN w.wz_incident_count >= 5 THEN 'High Frequency – Safety Audit'
         ELSE 'Monitor'
     END                                               AS recommended_action
-FROM dot_geo.work_zone_incident_conflicts w
+FROM ${catalog}.dot_geo.work_zone_incident_conflicts w
 ORDER BY w.wz_fatalities DESC, w.wz_incident_count DESC;
 
 
@@ -125,15 +129,15 @@ ORDER BY w.wz_fatalities DESC, w.wz_incident_count DESC;
 -- ─────────────────────────────────────────────────────────────────────────────
 WITH incident_cells AS (
     SELECT h3_index_r8, incident_count, total_fatalities, risk_tier
-    FROM dot_geo.h3_incident_density
+    FROM ${catalog}.dot_geo.h3_incident_density
     WHERE incident_count >= 5
 ),
 sensor_cells AS (
     SELECT DISTINCT h3_index_r8 AS h3_sensor
-    FROM dot_geo.incidents_geo_enriched inc
+    FROM ${catalog}.dot_geo.incidents_geo_enriched inc
     INNER JOIN (
         SELECT h3_index_r8 AS h3s
-        FROM delta.`/Volumes/main/default/dot_lakehouse/bronze/geospatial/sensor_locations`
+        FROM delta.`${base_path}/bronze/geospatial/sensor_locations`
         WHERE operational_status = 'Active'
     ) s ON inc.h3_index_r8 = s.h3s
 )
@@ -173,7 +177,7 @@ SELECT
         SUM(CASE WHEN incident_type = 'PEDESTRIAN' THEN 1 ELSE 0 END) * 100.0 / COUNT(*),
         2
     )                                                 AS pedestrian_pct
-FROM dot_geo.incidents_geo_enriched
+FROM ${catalog}.dot_geo.incidents_geo_enriched
 GROUP BY 1,2
 ORDER BY 2, 1;
 
@@ -189,11 +193,12 @@ SELECT
     route_name,
     functional_class,
     aadt,
+    speed_limit_mph,
     geometry_wkt,
     ROUND(ST_Length(ST_GeomFromWKT(geometry_wkt)) * 111139, 0) AS approx_length_m,
     ST_X(ST_StartPoint(ST_GeomFromWKT(geometry_wkt)))           AS start_lon,
     ST_Y(ST_StartPoint(ST_GeomFromWKT(geometry_wkt)))           AS start_lat
-FROM delta.`/Volumes/main/default/dot_lakehouse/bronze/geospatial/road_segments`
+FROM delta.`${base_path}/bronze/geospatial/road_segments`
 LIMIT 20;
 
 -- Check if incidents fall within TAZ polygons (point-in-polygon)
@@ -206,8 +211,8 @@ SELECT
     taz.taz_id,
     taz.zone_type,
     taz.population
-FROM dot_geo.incidents_geo_enriched inc
-CROSS JOIN delta.`/Volumes/main/default/dot_lakehouse/bronze/geospatial/traffic_analysis_zones` taz
+FROM ${catalog}.dot_geo.incidents_geo_enriched inc
+CROSS JOIN delta.`${base_path}/bronze/geospatial/traffic_analysis_zones` taz
 WHERE ST_Contains(
     ST_GeomFromWKT(taz.geometry_wkt),
     ST_Point(inc.longitude, inc.latitude)
@@ -225,7 +230,7 @@ SELECT
         ST_Point(inc.longitude, inc.latitude),
         ST_Point(-80.0, 35.5)   -- approximate I-40 midpoint
     ) * 111139 AS distance_m_from_i40_mid
-FROM dot_geo.incidents_geo_enriched inc
+FROM ${catalog}.dot_geo.incidents_geo_enriched inc
 WHERE ST_Distance(
     ST_Point(inc.longitude, inc.latitude),
     ST_Point(-80.0, 35.5)
