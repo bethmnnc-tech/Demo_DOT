@@ -94,6 +94,7 @@ body{background:var(--bg0);color:var(--text);font-family:var(--font);height:100v
       <button class="ltab" data-layer="bridges"><div class="ico" style="background:rgba(255,197,61,.15);color:var(--yellow)">&#x25B2;</div>Bridge Risk</button>
       <button class="ltab" data-layer="sensors"><div class="ico" style="background:rgba(34,211,238,.15);color:var(--cyan)">&#x25C9;</div>Sensor Network</button>
       <button class="ltab" data-layer="workzones"><div class="ico" style="background:rgba(255,139,62,.15);color:var(--orange)">&#x26D4;</div>Work Zones</button>
+      <button class="ltab" data-layer="cameras"><div class="ico" style="background:rgba(34,211,238,.15);color:var(--cyan)">&#x25CF;</div>Live Cameras</button>
     </div>
     <div class="divider"></div>
     <div class="card"><div class="card-title">Layer Stats</div><div class="stat-grid" id="stats"></div></div>
@@ -198,7 +199,9 @@ const layers = {
   bridges:   L.layerGroup(),
   sensors:   L.layerGroup(),
   workzones: L.layerGroup(),
+  cameras:   L.layerGroup(),
 };
+let camerasLoaded = false;
 let currentLayer = 'incidents';
 
 function pp(rows) {
@@ -285,9 +288,41 @@ function pp(rows) {
 })();
 
 // ── Layer switching ──
+function loadCameras() {
+  if (camerasLoaded) return;
+  camerasLoaded = true;
+  setInfo('CAMERAS', 'Fetching live cameras from NCDOT API...');
+  fetch('/api/cameras')
+    .then(r => r.json())
+    .then(cams => {
+      if (cams.error) { setInfo('ERROR', cams.error); return; }
+      cams.forEach(c => {
+        const m = L.circleMarker([c.lat, c.lon], {
+          radius: 6, fillColor: '#22d3ee', fillOpacity: 0.9,
+          color: '#fff', weight: 1.5, opacity: 0.5,
+        });
+        const popupHtml = '<div style="min-width:280px;text-align:center">' +
+          '<div style="color:#8b9cc7;font-size:10px;margin-bottom:4px">' + (c.route||'') + '</div>' +
+          '<div style="color:#00e4b8;font-weight:600;margin-bottom:6px">' + c.label + '</div>' +
+          '<img src="' + c.image_url + '" style="width:100%;border-radius:6px;border:1px solid #333" ' +
+          'onerror="this.style.display=\'none\'">' +
+          '</div>';
+        m.bindPopup(popupHtml, {maxWidth: 320});
+        m.on('mouseover', function(){ setInfo('CAMERA', c.label + ' — ' + (c.route||'unknown route')); });
+        layers.cameras.addLayer(m);
+      });
+      updateStats('cameras');
+      updateLegend('cameras');
+      setInfo('CAMERAS', cams.length + ' live cameras loaded from NCDOT');
+      window._cameraCount = cams.length;
+    })
+    .catch(e => setInfo('ERROR', 'Failed to load cameras: ' + e));
+}
+
 function setLayer(name) {
   currentLayer = name;
   Object.values(layers).forEach(lg => map.removeLayer(lg));
+  if (name === 'cameras') loadCameras();
   layers[name].addTo(map);
   document.querySelectorAll('.ltab').forEach(b => b.classList.toggle('active', b.dataset.layer===name));
   updateStats(name); updateLegend(name);
@@ -300,6 +335,7 @@ function layerCount(n) {
   if(n==='bridges') return BRIDGES.length+' bridges';
   if(n==='sensors') return SENSORS.length+' sensors';
   if(n==='workzones') return WORKZONES.length+' zones';
+  if(n==='cameras') return (window._cameraCount||'...') + ' cameras';
 }
 
 function updateStats(n) {
@@ -309,6 +345,7 @@ function updateStats(n) {
   else if(n==='bridges'){items=[{v:BRIDGES.length,l:'Bridges'},{v:BRIDGES.filter(b=>b.sr<45).length,l:'Low sufficiency'},{v:Math.round(BRIDGES.reduce((s,b)=>s+b.sr,0)/BRIDGES.length),l:'Avg rating'},{v:BRIDGES.filter(b=>b.yr<1970).length,l:'Pre-1970'}];}
   else if(n==='sensors'){const a=SENSORS.filter(s=>s.st==='Active');items=[{v:SENSORS.length,l:'Total sensors'},{v:a.length,l:'Active'},{v:Math.round(a.length/SENSORS.length*100)+'%',l:'Active rate'},{v:[...new Set(SENSORS.map(s=>s.r))].length,l:'Routes covered'}];}
   else if(n==='workzones'){items=[{v:WORKZONES.length,l:'Work zones'},{v:WORKZONES.filter(w=>w.t==='Full Closure').length,l:'Full closures'},{v:WORKZONES.filter(w=>w.t==='Lane Closure').length,l:'Lane closures'},{v:[...new Set(WORKZONES.map(w=>w.r))].length,l:'Affected routes'}];}
+  else if(n==='cameras'){const cnt=window._cameraCount||'...';items=[{v:cnt,l:'Live cameras'},{v:'NCDOT',l:'Data source'},{v:'Real-time',l:'Feed type'},{v:'Click pin',l:'View image'}];}
   document.getElementById('stats').innerHTML=items.map(i=>'<div class="stat"><div class="stat-val">'+i.v+'</div><div class="stat-lbl">'+i.l+'</div></div>').join('');
 }
 
@@ -319,6 +356,7 @@ function updateLegend(n) {
   else if(n==='bridges') items=[{c:'#ff4d6a',l:'Low sufficiency (<45)'},{c:'#ffc53d',l:'Fair (45-70)'},{c:'#34d399',l:'Good (>70)'}];
   else if(n==='sensors') items=[{c:'#22d3ee',l:'Inductive Loop'},{c:'#a78bfa',l:'Radar'},{c:'#ff8b3e',l:'CCTV'},{c:'#34d399',l:'Microwave'},{c:'#ff6b9d',l:'Bluetooth'},{c:'#4e5f87',l:'Inactive'}];
   else if(n==='workzones') items=[{c:'#ff8b3e',l:'Work zone'}];
+  else if(n==='cameras') items=[{c:'#22d3ee',l:'Live NCDOT camera'}];
   document.getElementById('legend').innerHTML=items.map(i=>'<div class="legend-item"><div class="swatch" style="background:'+i.c+'"></div>'+i.l+'</div>').join('');
 }
 
