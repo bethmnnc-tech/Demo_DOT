@@ -17,7 +17,7 @@ resources:
       tasks:
         - task_key: ncdot_traffic_ingest
           notebook_task:
-            notebook_path: ../Demo_Code/NCDOT Traffic API.ipynb
+            notebook_path: ${workspace.file_path}/Demo_Code/NCDOT Traffic API.ipynb
             base_parameters:
               base_path: "${var.base_path}"
               catalog: "${var.catalog}"

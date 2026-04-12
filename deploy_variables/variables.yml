@@ -1,6 +1,6 @@
-# =============================================================================
-# Variable Declarations (defaults; overridden per target in dev.yml / prod.yml)
-# =============================================================================
+# ==============================================================================
+# Variable Declarations (defaults; overridden per target in dev.yml / prod.yml) 
+# ==============================================================================
 variables:
   catalog:
     description: Unity Catalog name
