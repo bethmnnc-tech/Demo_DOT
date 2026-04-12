@@ -1,0 +1,9 @@
+# Job-generated camera data files (refreshed daily by camera refresh jobs)
+# Excluded from Git and bundle sync to prevent stale data overwrites.
+dot_app/ncdot-camera-viewer/data.json
+dot_app/ncdot-camera-viewer/index.html
+dot_app/mdot-camera-viewer/data.json
+dot_app/mdot-camera-viewer/index.html
+
+# Bundle artifacts
+.bundle/
