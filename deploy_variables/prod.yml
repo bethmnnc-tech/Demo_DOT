@@ -12,9 +12,8 @@ targets:
     #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
     variables:
       catalog: main_prod
-      schema_silver: dot_silver_prod
       base_path: /Volumes/main_prod/default/dot_lakehouse
-      warehouse_id: 269f3f8ac232d6f2
+      # warehouse_id: REPLACE_WITH_PROD_WAREHOUSE_ID
     resources:
       pipelines:
         dot_streaming_pipeline:
