@@ -1,0 +1,41 @@
+# =============================================================================
+# Prod Target — Variable Overrides & Resource Overrides
+# Only variables that differ from defaults (variables.yml) are listed here.
+# Jobs are UNPAUSED in prod to run on their defined schedules.
+# =============================================================================
+targets:
+  prod:
+    workspace:
+      host: https://dbc-a5388842-1c80.cloud.databricks.com
+    # Uncomment after granting servicePrincipal/user role in Account Console:
+    # run_as:
+    #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
+    variables:
+      catalog: main_prod
+      schema_silver: dot_silver_prod
+      base_path: /Volumes/main_prod/default/dot_lakehouse
+      warehouse_id: 269f3f8ac232d6f2
+    resources:
+      pipelines:
+        dot_streaming_pipeline:
+          development: false
+          continuous: true
+      jobs:
+        dot_data_refresh:
+          schedule:
+            pause_status: UNPAUSED
+        dot_ml_training:
+          schedule:
+            pause_status: UNPAUSED
+        dot_monitoring_refresh:
+          schedule:
+            pause_status: UNPAUSED
+        ncdot_camera_refresh:
+          schedule:
+            pause_status: UNPAUSED
+        ncdot_traffic_api:
+          schedule:
+            pause_status: UNPAUSED
+        mdot_camera_refresh:
+          schedule:
+            pause_status: UNPAUSED

@@ -1,0 +1,79 @@
+# =============================================================================
+# Job 1: Data Refresh Pipeline (Bronze → Silver → Gold + Geospatial)
+# =============================================================================
+resources:
+  jobs:
+    dot_data_refresh:
+      name: "[${bundle.target}] DOT Data Refresh Pipeline"
+      schedule:
+        quartz_cron_expression: ${var.data_refresh_cron}
+        timezone_id: ${var.schedule_timezone}
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: data_pipeline
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies: []
+      tasks:
+        - task_key: generate_bronze
+          spark_python_task:
+            python_file: ../Demo_Code/01_generate_sample_data.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: transform_silver
+          depends_on:
+            - task_key: generate_bronze
+          spark_python_task:
+            python_file: ../Demo_Code/02_silver_transformations.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: build_gold
+          depends_on:
+            - task_key: transform_silver
+          spark_python_task:
+            python_file: ../Demo_Code/03_gold_analytics.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: geospatial_generation
+          depends_on:
+            - task_key: transform_silver
+          spark_python_task:
+            python_file: ../Demo_Code/07a_geospatial_data_generation.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+
+        - task_key: geospatial_analytics
+          depends_on:
+            - task_key: geospatial_generation
+          spark_python_task:
+            python_file: ../Demo_Code/07b_geospatial_analytics.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800

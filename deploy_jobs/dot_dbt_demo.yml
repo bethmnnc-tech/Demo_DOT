@@ -1,0 +1,27 @@
+# =============================================================================
+# Job 4: dbt Demo
+# =============================================================================
+resources:
+  jobs:
+    dot_dbt_demo:
+      name: "[${bundle.target}] DOT dbt Demo"
+      tags:
+        project: dot_transportation
+        layer: dbt
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - dbt-databricks
+      tasks:
+        - task_key: dbt_build_demo
+          environment_key: default
+          dbt_task:
+            source: WORKSPACE
+            warehouse_id: ${var.warehouse_id}
+            catalog: ${var.catalog}
+            project_directory: ${workspace.file_path}/dbt_demo
+            commands:
+              - "dbt deps"
+              - "dbt build --vars '{databricks_catalog: ${var.catalog}}'"

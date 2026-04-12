@@ -1,0 +1,48 @@
+# =============================================================================
+# Variable Declarations (defaults; overridden per target in dev.yml / prod.yml)
+# =============================================================================
+variables:
+  catalog:
+    description: Unity Catalog name
+    default: main
+
+  schema_silver:
+    description: Silver schema name
+    default: dot_silver
+
+  base_path:
+    description: Root DBFS/UC volume path
+    default: /Volumes/main/default/dot_lakehouse
+
+  warehouse_id:
+    description: SQL warehouse ID for apps and dbt tasks
+    default: 269f3f8ac232d6f2
+
+  # ── Job Schedule Variables passed to all jobs─────────────────────────────────
+  schedule_timezone:
+    description: Timezone for all job schedules
+    default: America/New_York
+
+  data_refresh_cron:
+    description: Cron for data refresh pipeline
+    default: "0 0 6 * * ? *"
+
+  ml_training_cron:
+    description: Cron for ML model training
+    default: "0 0 8 ? * MON *"
+
+  monitoring_refresh_cron:
+    description: Cron for monitoring refresh
+    default: "0 0 10 * * ? *"
+
+  ncdot_camera_cron:
+    description: Cron for NCDOT camera data refresh
+    default: "0 0 6 * * ? *"
+
+  ncdot_traffic_api_cron:
+    description: Cron for NCDOT traffic API ingest
+    default: "0 0 6 * * ? *"
+
+  mdot_camera_cron:
+    description: Cron for MDOT camera data refresh
+    default: "0 0 6 * * ? *"

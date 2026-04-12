@@ -28,8 +28,12 @@ else:
 BRONZE_PATH  = f"{BASE_PATH}/bronze"
 SILVER_PATH  = f"{BASE_PATH}/silver"
 
+BRONZE_SCHEMA = f"{CATALOG}.dot_bronze"
+SILVER_SCHEMA = f"{CATALOG}.dot_silver"
+
 print(f"  BASE_PATH = {BASE_PATH}")
 print(f"  CATALOG   = {CATALOG}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER: Data Quality Checker
@@ -53,6 +57,10 @@ def run_dq_checks(df, domain: str, checks: list[dict]) -> None:
 # SILVER 1 – TRAFFIC INCIDENTS
 # ─────────────────────────────────────────────────────────────────────────────
 df_inc_raw = spark.read.format("delta").load(f"{BRONZE_PATH}/traffic_incidents")
+
+df_inc_raw.write.format("delta").mode("overwrite").option("overwriteSchema","true") \
+    .partitionBy("state_code") \
+    .saveAsTable(f"{BRONZE_SCHEMA}.traffic_incidents_raw")
 
 # ── DQ Checks ───────────────────────────────────────────────────────────────
 run_dq_checks(df_inc_raw, "traffic_incidents", [
@@ -91,7 +99,7 @@ df_inc_silver = (
          .when(F.col("severity") == "Property Damage Only", 2)
          .otherwise(1))
     # Drop duplicates on natural key
-    .dropDuplicates(["incident_id"], keep='last')
+    .dropDuplicates(["incident_id"])
     # Remove records with null critical fields
     .filter(F.col("incident_id").isNotNull())
     .filter(F.col("incident_datetime").isNotNull())
@@ -108,6 +116,10 @@ print(f"\n✓ Silver traffic_incidents → {df_inc_silver.count():,} rows")
 # SILVER 2 – BRIDGE INSPECTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 df_brg_raw = spark.read.format("delta").load(f"{BRONZE_PATH}/bridge_inspections")
+
+df_brg_raw.write.format("delta").mode("overwrite").option("overwriteSchema","true") \
+    .partitionBy("state_code") \
+    .saveAsTable(f"{BRONZE_SCHEMA}.bridge_inspections_raw")
 
 run_dq_checks(df_brg_raw, "bridge_inspections", [
     {"name": "bridge_id not null",             "expr": "bridge_id IS NULL",                   "threshold": 0.00},
@@ -172,6 +184,10 @@ print(f"✓ Silver bridge_inspections → {df_brg_silver.count():,} rows")
 # ─────────────────────────────────────────────────────────────────────────────
 df_veh_raw = spark.read.format("delta").load(f"{BRONZE_PATH}/vehicle_registrations")
 
+df_veh_raw.write.format("delta").mode("overwrite").option("overwriteSchema","true") \
+    .partitionBy("state_code","vehicle_class") \
+    .saveAsTable(f"{BRONZE_SCHEMA}.vehicle_registrations_raw")
+
 run_dq_checks(df_veh_raw, "vehicle_registrations", [
     {"name": "vin not null",            "expr": "vin IS NULL",                          "threshold": 0.00},
     {"name": "model_year plausible",    "expr": "model_year < 1900 OR model_year > 2025","threshold": 0.01},
@@ -209,6 +225,10 @@ print(f"✓ Silver vehicle_registrations → {df_veh_silver.count():,} rows")
 # SILVER 4 – PAVEMENT CONDITIONS
 # ─────────────────────────────────────────────────────────────────────────────
 df_pav_raw = spark.read.format("delta").load(f"{BRONZE_PATH}/pavement_conditions")
+
+df_pav_raw.write.format("delta").mode("overwrite").option("overwriteSchema","true") \
+    .partitionBy("state_code","functional_class") \
+    .saveAsTable(f"{BRONZE_SCHEMA}.pavement_conditions_raw")
 
 run_dq_checks(df_pav_raw, "pavement_conditions", [
     {"name": "segment_id not null",      "expr": "segment_id IS NULL",         "threshold": 0.00},
