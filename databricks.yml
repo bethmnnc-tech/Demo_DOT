@@ -16,6 +16,16 @@ include:
   - deploy_apps/*.yml
   - deploy_pipelines/*.yml
 
+# ── Sync exclusions ───────────────────────────────────────────────────────────
+# Exclude job-generated data files from bundle sync to prevent deployments
+# from overwriting freshly refreshed camera data.
+sync:
+  exclude:
+    - dot_app/ncdot-camera-viewer/data.json
+    - dot_app/ncdot-camera-viewer/index.html
+    - dot_app/mdot-camera-viewer/data.json
+    - dot_app/mdot-camera-viewer/index.html
+
 # ── Run-as identity ───────────────────────────────────────────────────────────
 # To use a service principal, the deploying user must have the
 # servicePrincipal/user role (granted via Account Console).
