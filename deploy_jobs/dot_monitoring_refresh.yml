@@ -14,7 +14,7 @@ resources:
       tasks:
         - task_key: bridge_health_monitor
           notebook_task:
-            notebook_path: .../Bridge Health Monitoring Setup.py
+            notebook_path: ${workspace.file_path}/Bridge Health Monitoring Setup.py
             base_parameters:
               base_path: "${var.base_path}"
               catalog: "${var.catalog}"
@@ -22,7 +22,7 @@ resources:
 
         - task_key: high_risk_corridors_monitor
           notebook_task:
-            notebook_path: .../High Risk Corridors Monitoring Setup.py
+            notebook_path: ${workspace.file_path}/High Risk Corridors Monitoring Setup.py
             base_parameters:
               base_path: "${var.base_path}"
               catalog: "${var.catalog}"

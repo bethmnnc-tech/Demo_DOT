@@ -17,7 +17,7 @@ resources:
       tasks:
         - task_key: refresh_ncdot_data
           notebook_task:
-            notebook_path: ../dot_app/ncdot-camera-viewer/refresh_ncdot_data.py
+            notebook_path: ${workspace.file_path}/dot_app/ncdot-camera-viewer/refresh_ncdot_data.py
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 600
