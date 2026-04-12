@@ -1,12 +1,23 @@
 # CICD deployment controls for dev and prod 
 # When a change is merged into main, dev will be triggered.  Jobs and Apps will be deployed to the dev workspace.
 # When a change is merged into prod, prod will be triggered.  Jobs and Apps will be deployed to the prod workspace.
+# Can also be triggered manually via workflow_dispatch.
 
 name: 'DOT Bundle Deploy'
 
 concurrency: 1
 
 on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Deployment target"
+        required: true
+        default: "dev"
+        type: choice
+        options:
+          - dev
+          - prod
   push:
     branches:
       - main
@@ -16,9 +27,9 @@ jobs:
   deploy-dev:
     name: 'Deploy to Dev'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.event.inputs.target == 'dev'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: databricks/setup-cli@main
 
@@ -57,9 +68,9 @@ jobs:
   deploy-prod:
     name: 'Deploy to Prod'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/prod'
+    if: github.ref == 'refs/heads/prod' || github.event.inputs.target == 'prod'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - uses: databricks/setup-cli@main
 
