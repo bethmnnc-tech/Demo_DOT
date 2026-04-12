@@ -1,6 +1,6 @@
 # =============================================================================
 # CI Pipeline — Validate Databricks Asset Bundle on Pull Requests
-# Runs on every PR to main to catch config/syntax errors before merge
+# Runs on every PR to main or prod to catch config/syntax errors before merge
 # =============================================================================
 name: CI — Validate Bundle
 
@@ -17,12 +17,15 @@ on:
           - prod
           - both
   pull_request:
-    branches: [main]
+    branches: [main, prod]
     paths:
       - "databricks.yml"
       - "Demo_Code/**"
-      - "dbt_demo/**"
       - "dot_app/**"
+      - "deploy_jobs/**"
+      - "deploy_variables/**"
+      - "deploy_apps/**"
+      - "deploy_pipelines/**"
       - ".github/workflows/**"
 
 permissions:
