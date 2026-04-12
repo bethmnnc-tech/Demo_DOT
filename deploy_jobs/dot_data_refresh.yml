@@ -22,7 +22,7 @@ resources:
       tasks:
         - task_key: generate_bronze
           spark_python_task:
-            python_file: ./Demo_Code/01_generate_sample_data.py
+            python_file: ../Demo_Code/01_generate_sample_data.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"
@@ -34,7 +34,7 @@ resources:
           depends_on:
             - task_key: generate_bronze
           spark_python_task:
-            python_file: ./Demo_Code/02_silver_transformations.py
+            python_file: ../Demo_Code/02_silver_transformations.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"
@@ -46,7 +46,7 @@ resources:
           depends_on:
             - task_key: transform_silver
           spark_python_task:
-            python_file: ./Demo_Code/03_gold_analytics.py
+            python_file: ../Demo_Code/03_gold_analytics.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"
@@ -58,7 +58,7 @@ resources:
           depends_on:
             - task_key: transform_silver
           spark_python_task:
-            python_file: ./Demo_Code/07a_geospatial_data_generation.py
+            python_file: ../Demo_Code/07a_geospatial_data_generation.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"
@@ -70,7 +70,7 @@ resources:
           depends_on:
             - task_key: geospatial_generation
           spark_python_task:
-            python_file: ./Demo_Code/07b_geospatial_analytics.py
+            python_file: ../Demo_Code/07b_geospatial_analytics.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"

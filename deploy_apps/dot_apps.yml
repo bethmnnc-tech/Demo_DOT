@@ -5,7 +5,7 @@ resources:
   apps:
     ncdot_camera_viewer:
       name: "ncdot-camera-viewer"
-      source_code_path: ./dot_app/ncdot-camera-viewer
+      source_code_path: ../dot_app/ncdot-camera-viewer
       description: "Live NCDOT traffic camera viewer and incident map"
       resources:
         - name: sql-warehouse
@@ -15,7 +15,7 @@ resources:
 
     mdot_camera_viewer:
       name: "mdot-camera-viewer"
-      source_code_path: ./dot_app/mdot-camera-viewer
+      source_code_path: ../dot_app/mdot-camera-viewer
       description: "Live Michigan DOT traffic camera viewer"
       resources:
         - name: sql-warehouse
@@ -25,12 +25,12 @@ resources:
 
     dot_geospatial_app:
       name: "dot-geospatial-app"
-      source_code_path: ./dot_app/static
+      source_code_path: ../dot_app/static
       description: "NC DOT geospatial analytics dashboard"
 
     dot_ml_app:
       name: "dot-ml-app"
-      source_code_path: ./dot_app/ml-demo
+      source_code_path: ../dot_app/ml-demo
       description: "DOT ML demo with data assistant chatbot"
       resources:
         - name: sql-warehouse

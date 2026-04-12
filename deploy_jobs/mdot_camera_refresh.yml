@@ -17,7 +17,7 @@ resources:
       tasks:
         - task_key: refresh_mdot_data
           notebook_task:
-            notebook_path: ./dot_app/mdot-camera-viewer/refresh_mdot_data.py
+            notebook_path: ../dot_app/mdot-camera-viewer/refresh_mdot_data.py
             source: WORKSPACE
           environment_key: default
           timeout_seconds: 600

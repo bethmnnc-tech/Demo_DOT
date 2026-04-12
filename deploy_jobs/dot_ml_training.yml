@@ -24,7 +24,7 @@ resources:
       tasks:
         - task_key: train_and_register
           spark_python_task:
-            python_file: ./Demo_Code/04_ml_models.py
+            python_file: ../Demo_Code/04_ml_models.py
             parameters:
               - "${var.base_path}"
               - "${var.catalog}"

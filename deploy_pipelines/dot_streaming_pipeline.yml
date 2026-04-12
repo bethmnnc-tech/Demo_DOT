@@ -9,7 +9,7 @@ resources:
       target: ${var.schema_silver}
       libraries:
         - file:
-            path: ./Demo_Code/05_streaming_dlt.py
+            path: ../Demo_Code/05_streaming_dlt.py
       configuration:
         base_path: ${var.base_path}
         catalog: ${var.catalog}
