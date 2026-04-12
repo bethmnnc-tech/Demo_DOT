@@ -68,8 +68,31 @@ jobs:
           for entry in "${apps[@]}"; do
             key="${entry%%:*}"
             name="${entry##*:}"
-            echo "Binding $key -> $name"
+            echo "Binding app $key -> $name"
             databricks bundle deployment bind "$key" "$name" \
+              --target dev --auto-approve 2>/dev/null || true
+          done
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Adopt existing jobs into bundle state
+        run: |
+          # Bind pre-existing jobs so Terraform manages them
+          # instead of trying to create duplicates.
+          # Safe to re-run: silently succeeds if already bound.
+          jobs=("dot_data_refresh:698168689162600"
+                "dot_ml_training:849345797981086"
+                "dot_monitoring_refresh:760901587269881"
+                "dot_dbt_demo:748265400776645"
+                "ncdot_camera_refresh:106420033938468"
+                "ncdot_traffic_api:886469117376102"
+                "mdot_camera_refresh:467654423494161")
+          for entry in "${jobs[@]}"; do
+            key="${entry%%:*}"
+            id="${entry##*:}"
+            echo "Binding job $key -> $id"
+            databricks bundle deployment bind "$key" "$id" \
               --target dev --auto-approve 2>/dev/null || true
           done
         env:
@@ -107,8 +130,31 @@ jobs:
           for entry in "${apps[@]}"; do
             key="${entry%%:*}"
             name="${entry##*:}"
-            echo "Binding $key -> $name"
+            echo "Binding app $key -> $name"
             databricks bundle deployment bind "$key" "$name" \
+              --target prod --auto-approve 2>/dev/null || true
+          done
+        env:
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+
+      - name: Adopt existing jobs into bundle state
+        run: |
+          # Bind pre-existing jobs so Terraform manages them
+          # instead of trying to create duplicates.
+          # Safe to re-run: silently succeeds if already bound.
+          jobs=("dot_data_refresh:538532425241714"
+                "dot_ml_training:256886606780251"
+                "dot_monitoring_refresh:1105142903086339"
+                "dot_dbt_demo:827446265918"
+                "ncdot_camera_refresh:216930953065575"
+                "ncdot_traffic_api:68545249296904"
+                "mdot_camera_refresh:830396752421058")
+          for entry in "${jobs[@]}"; do
+            key="${entry%%:*}"
+            id="${entry##*:}"
+            echo "Binding job $key -> $id"
+            databricks bundle deployment bind "$key" "$id" \
               --target prod --auto-approve 2>/dev/null || true
           done
         env:
