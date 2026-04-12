@@ -24,10 +24,27 @@ on:
       - prod
 
 jobs:
+  set-target:
+    name: 'Determine Deploy Target'
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.resolve.outputs.target }}
+    steps:
+      - id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "target=${{ github.event.inputs.target }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.ref_name }}" = "prod" ]; then
+            echo "target=prod" >> "$GITHUB_OUTPUT"
+          else
+            echo "target=dev" >> "$GITHUB_OUTPUT"
+          fi
+
   deploy-dev:
     name: 'Deploy to Dev'
+    needs: set-target
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'dev')
+    if: needs.set-target.outputs.target == 'dev'
     steps:
       - uses: actions/checkout@v4
 
@@ -67,8 +84,9 @@ jobs:
 
   deploy-prod:
     name: 'Deploy to Prod'
+    needs: set-target
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/prod') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod')
+    if: needs.set-target.outputs.target == 'prod'
     steps:
       - uses: actions/checkout@v4
 
