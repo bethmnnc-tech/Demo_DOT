@@ -1,0 +1,31 @@
+# =============================================================================
+# Job 6: NCDOT Traffic API Ingest
+# =============================================================================
+resources:
+  jobs:
+    ncdot_traffic_api:
+      name: "[${bundle.target}] NCDOT Traffic API Daily Refresh"
+      schedule:
+        quartz_cron_expression: ${var.ncdot_traffic_api_cron}   # Daily at 6 AM ET
+        timezone_id: ${var.schedule_timezone}
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: ncdot_api
+      tasks:
+        - task_key: ncdot_traffic_ingest
+          notebook_task:
+            notebook_path: ${workspace.file_path}/Demo_Code/NCDOT Traffic API.ipynb
+            base_parameters:
+              base_path: "${var.base_path}"
+              catalog: "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 1800
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies: []

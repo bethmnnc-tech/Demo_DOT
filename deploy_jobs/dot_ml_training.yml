@@ -1,0 +1,33 @@
+# =============================================================================
+# Job 2: ML Model Training & Registration
+# =============================================================================
+resources:
+  jobs:
+    dot_ml_training:
+      name: "[${bundle.target}] DOT ML Model Training"
+      schedule:
+        quartz_cron_expression: ${var.ml_training_cron}  # Weekly Monday 8 AM ET
+        timezone_id: ${var.schedule_timezone}
+      email_notifications:
+        on_failure:
+          - beth.ramsey@trace3.com
+      tags:
+        project: dot_transportation
+        layer: ml_models
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - mlflow[databricks]
+              - scikit-learn==1.6.1
+      tasks:
+        - task_key: train_and_register
+          spark_python_task:
+            python_file: ../Demo_Code/04_ml_models.py
+            parameters:
+              - "${var.base_path}"
+              - "${var.catalog}"
+            source: WORKSPACE
+          environment_key: default
+          timeout_seconds: 3600

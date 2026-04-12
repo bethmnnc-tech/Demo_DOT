@@ -1,0 +1,19 @@
+# =============================================================================
+# DLT Pipeline: Streaming Ingestion
+# =============================================================================
+resources:
+  pipelines:
+    dot_streaming_pipeline:
+      name: "[${bundle.target}] DOT Streaming Ingestion"
+      allow_duplicate_names: true
+      target: ${var.schema_silver}
+      libraries:
+        - file:
+            path: ../Demo_Code/05_streaming_dlt.py
+      configuration:
+        base_path: ${var.base_path}
+        catalog: ${var.catalog}
+      continuous: false
+      development: true
+      serverless: true
+      catalog: ${var.catalog}
