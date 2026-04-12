@@ -1,0 +1,41 @@
+# =============================================================================
+# Dev Target — Resource Overrides
+# Variables inherit defaults from variables.yml (catalog=main, etc.)
+# Jobs are PAUSED in dev to prevent unintended scheduled runs.
+# =============================================================================
+targets:
+  dev:
+    default: true
+    workspace:
+      host: https://dbc-a5388842-1c80.cloud.databricks.com
+    # Uncomment after granting servicePrincipal/user role in Account Console:
+    # run_as:
+    #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
+    variables:
+      catalog: main
+      schema_silver: dot_silver
+      base_path: /Volumes/main/default/dot_lakehouse
+      warehouse_id: 269f3f8ac232d6f2
+    resources:
+      pipelines:
+        dot_streaming_pipeline:
+          development: true
+      jobs:
+        dot_data_refresh:
+          schedule:
+            pause_status: PAUSED
+        dot_ml_training:
+          schedule:
+            pause_status: PAUSED
+        dot_monitoring_refresh:
+          schedule:
+            pause_status: PAUSED
+        ncdot_camera_refresh:
+          schedule:
+            pause_status: PAUSED
+        ncdot_traffic_api:
+          schedule:
+            pause_status: PAUSED
+        mdot_camera_refresh:
+          schedule:
+            pause_status: PAUSED

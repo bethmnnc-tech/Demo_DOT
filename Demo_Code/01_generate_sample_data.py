@@ -31,7 +31,8 @@ else:
     BASE_PATH = dbutils.widgets.get("base_path")
     CATALOG   = dbutils.widgets.get("catalog")
 
-NUM_RECORDS = 50_000                         # scale up as needed
+
+NUM_RECORDS = 200_000                        # scale up as needed
 SEED        = 42
 random.seed(SEED)
 
@@ -205,7 +206,7 @@ owner_types      = ["State DOT","Federal","County","City/Municipality","Railroad
 condition_codes  = ["N - Not Applicable","G - Good","F - Fair","P - Poor","C - Critical"]
 
 bridges = []
-for i in range(10_000):
+for i in range(40_000):
     lat, lon = rand_coord_nc()
     year_built = random.randint(1930, 2020)
     last_insp  = rand_date(2018, 2024)
@@ -335,7 +336,7 @@ pavement_types   = ["Asphalt","Concrete","Composite","Gravel","Chip Seal"]
 functional_class = ["Interstate","US Route","State Route","County Road","Local Road","Ramp"]
 
 pavements = []
-for i in range(20_000):
+for i in range(80_000):
     insp_date = rand_date(2019, 2024)
     pavements.append((
         f"SEG-{i+1:07d}",

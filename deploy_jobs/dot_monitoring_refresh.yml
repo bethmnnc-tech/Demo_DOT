@@ -1,0 +1,29 @@
+# =============================================================================
+# Job 3: Lakehouse Monitoring Refresh
+# =============================================================================
+resources:
+  jobs:
+    dot_monitoring_refresh:
+      name: "[${bundle.target}] DOT Monitoring Refresh"
+      schedule:
+        quartz_cron_expression: ${var.monitoring_refresh_cron}   # Daily at 10 AM ET
+        timezone_id: ${var.schedule_timezone}
+      tags:
+        project: dot_transportation
+        layer: monitoring
+      tasks:
+        - task_key: bridge_health_monitor
+          notebook_task:
+            notebook_path: ./Bridge Health Monitoring Setup.py
+            base_parameters:
+              base_path: "${var.base_path}"
+              catalog: "${var.catalog}"
+          timeout_seconds: 1200
+
+        - task_key: high_risk_corridors_monitor
+          notebook_task:
+            notebook_path: ./High Risk Corridors Monitoring Setup.py
+            base_parameters:
+              base_path: "${var.base_path}"
+              catalog: "${var.catalog}"
+          timeout_seconds: 1200
