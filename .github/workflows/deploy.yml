@@ -27,7 +27,7 @@ jobs:
   deploy-dev:
     name: 'Deploy to Dev'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event.inputs.target == 'dev'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'dev')
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +68,7 @@ jobs:
   deploy-prod:
     name: 'Deploy to Prod'
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/prod' || github.event.inputs.target == 'prod'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/prod') || (github.event_name == 'workflow_dispatch' && github.event.inputs.target == 'prod')
     steps:
       - uses: actions/checkout@v4
 
