@@ -13,7 +13,6 @@ targets:
     #   service_principal_name: 1c0d9d65-d7ef-40db-8949-8af18dc3faf3
     variables:
       catalog: main
-      schema_silver: dot_silver
       base_path: /Volumes/main/default/dot_lakehouse
       warehouse_id: 269f3f8ac232d6f2
     resources:
